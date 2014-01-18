@@ -75,7 +75,6 @@
             this.btnSaveAggregateStats = new System.Windows.Forms.Button();
             this.label14 = new System.Windows.Forms.Label();
             this.FileCounter = new System.Windows.Forms.Label();
-            this.btnPause = new System.Windows.Forms.Button();
             this.AggregateStats = new System.Windows.Forms.CheckBox();
             this.label12 = new System.Windows.Forms.Label();
             this.CombDecomposedChars = new System.Windows.Forms.CheckBox();
@@ -123,7 +122,7 @@
             this.BulkFontListFileBox = new System.Windows.Forms.TextBox();
             this.BulkStyleListBox = new System.Windows.Forms.TextBox();
             this.btnBulkErrorList = new System.Windows.Forms.Button();
-            this.BulkErrorListbox = new System.Windows.Forms.TextBox();
+            this.BulkErrorListBox = new System.Windows.Forms.TextBox();
             this.btnBulkFontListFile = new System.Windows.Forms.Button();
             this.btnBulkStyleListFile = new System.Windows.Forms.Button();
             this.toolStripContainer2 = new System.Windows.Forms.ToolStripContainer();
@@ -212,7 +211,7 @@
             // btnAnalyse
             // 
             this.btnAnalyse.Enabled = false;
-            this.btnAnalyse.Location = new System.Drawing.Point(631, 360);
+            this.btnAnalyse.Location = new System.Drawing.Point(631, 402);
             this.btnAnalyse.Name = "btnAnalyse";
             this.btnAnalyse.Size = new System.Drawing.Size(101, 33);
             this.btnAnalyse.TabIndex = 8;
@@ -265,7 +264,6 @@
             this.toolStripContainer1.ContentPanel.Controls.Add(this.btnSaveAggregateStats);
             this.toolStripContainer1.ContentPanel.Controls.Add(this.label14);
             this.toolStripContainer1.ContentPanel.Controls.Add(this.FileCounter);
-            this.toolStripContainer1.ContentPanel.Controls.Add(this.btnPause);
             this.toolStripContainer1.ContentPanel.Controls.Add(this.btnClose);
             this.toolStripContainer1.ContentPanel.Controls.Add(this.AggregateStats);
             this.toolStripContainer1.ContentPanel.Controls.Add(this.label12);
@@ -650,17 +648,6 @@
             this.FileCounter.TabIndex = 48;
             this.FileCounter.Text = "0";
             // 
-            // btnPause
-            // 
-            this.btnPause.Enabled = false;
-            this.btnPause.Location = new System.Drawing.Point(631, 405);
-            this.btnPause.Name = "btnPause";
-            this.btnPause.Size = new System.Drawing.Size(101, 30);
-            this.btnPause.TabIndex = 11;
-            this.btnPause.Text = "Pause";
-            this.btnPause.UseVisualStyleBackColor = true;
-            this.btnPause.Click += new System.EventHandler(this.btnPause_Click);
-            // 
             // AggregateStats
             // 
             this.AggregateStats.AutoSize = true;
@@ -828,7 +815,6 @@
             this.IndividualFile.TabIndex = 0;
             this.IndividualFile.Text = "Individual";
             this.IndividualFile.UseVisualStyleBackColor = true;
-            this.IndividualFile.Click += new System.EventHandler(this.Bulk_Entered);
             this.IndividualFile.Enter += new System.EventHandler(this.Individual_Entered);
             // 
             // label2
@@ -992,7 +978,7 @@
             this.Bulk.Controls.Add(this.BulkFontListFileBox);
             this.Bulk.Controls.Add(this.BulkStyleListBox);
             this.Bulk.Controls.Add(this.btnBulkErrorList);
-            this.Bulk.Controls.Add(this.BulkErrorListbox);
+            this.Bulk.Controls.Add(this.BulkErrorListBox);
             this.Bulk.Controls.Add(this.btnBulkFontListFile);
             this.Bulk.Controls.Add(this.btnBulkStyleListFile);
             this.Bulk.Location = new System.Drawing.Point(4, 22);
@@ -1136,13 +1122,13 @@
             this.btnBulkErrorList.UseVisualStyleBackColor = true;
             this.btnBulkErrorList.Click += new System.EventHandler(this.btnGetOutput_Click);
             // 
-            // BulkErrorListbox
+            // BulkErrorListBox
             // 
-            this.BulkErrorListbox.Location = new System.Drawing.Point(134, 121);
-            this.BulkErrorListbox.Name = "BulkErrorListbox";
-            this.BulkErrorListbox.Size = new System.Drawing.Size(408, 20);
-            this.BulkErrorListbox.TabIndex = 60;
-            this.BulkErrorListbox.TextChanged += new System.EventHandler(this.BulkErrorListbox_TextChanged);
+            this.BulkErrorListBox.Location = new System.Drawing.Point(134, 121);
+            this.BulkErrorListBox.Name = "BulkErrorListBox";
+            this.BulkErrorListBox.Size = new System.Drawing.Size(408, 20);
+            this.BulkErrorListBox.TabIndex = 60;
+            this.BulkErrorListBox.TextChanged += new System.EventHandler(this.BulkErrorListbox_TextChanged);
             // 
             // btnBulkFontListFile
             // 
@@ -1280,7 +1266,6 @@
         private System.Windows.Forms.ToolStripMenuItem aboutToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem LicenseMenuItem;
         private System.Windows.Forms.TextBox textBox1;
-        private System.Windows.Forms.Button btnPause;
         private System.Windows.Forms.CheckBox AnalyseByFont;
         private System.Windows.Forms.ToolTip toolTip1;
         private System.Windows.Forms.Button btnFontListFile;
@@ -1355,7 +1340,7 @@
         private System.Windows.Forms.TextBox BulkFontListFileBox;
         private System.Windows.Forms.TextBox BulkStyleListBox;
         private System.Windows.Forms.Button btnBulkErrorList;
-        private System.Windows.Forms.TextBox BulkErrorListbox;
+        private System.Windows.Forms.TextBox BulkErrorListBox;
         private System.Windows.Forms.Button btnBulkFontListFile;
         private System.Windows.Forms.Button btnBulkStyleListFile;
         private System.Windows.Forms.Button btnAggregateFile;

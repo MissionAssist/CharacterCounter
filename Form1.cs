@@ -7,7 +7,7 @@
  *  
  *  The copyright is owned by MissionAssist as the work was carried out on their behalf.
  * 
- *  Written by Stephen Palmstrom, last modified 12 December 2013
+ *  Written by Stephen Palmstrom, last modified 18 January 2014
  *  
  */
 using System;
@@ -82,6 +82,8 @@ namespace CharacterCounter
         new Dictionary<CharacterDescriptor, int>(1000, new CharacterEqualityComparer());
         private Dictionary<CharacterDescriptor, int> theAggregateSummaryDictionary =
         new Dictionary<CharacterDescriptor, int>(255, new CharacterEqualityComparer());
+        private Dictionary<string, bool> theControlDictionary = new Dictionary<string, bool>(30); // To hold the state of the various controls
+        private bool Working = false;  // Flag if we are working
 
         private string AggregateFileList = "";
 
@@ -114,7 +116,6 @@ namespace CharacterCounter
         /*
          * Variables for handling Pause and Resume
          */
-        private bool Paused = false;
         private bool CloseApp = false;
 
         /*
@@ -233,7 +234,6 @@ namespace CharacterCounter
         }
         private int GetFileType(string FileName, bool JustType = true)
         {
-            btnPause.Enabled = false;
             switch (Path.GetExtension(FileName).ToLower())
             {
                 // There may be times we just want the file type and nothing else.
@@ -353,7 +353,7 @@ namespace CharacterCounter
                     break;
                 case "btnBulkErrorList":
                     theDialogue = saveExcelDialogue;
-                    theTextBox = BulkErrorListbox;
+                    theTextBox = BulkErrorListBox;
                     theDialogue.InitialDirectory = ErrorDir;
                     theButton = btnSaveErrorList;
                     ValueName = "ErrorDir";
@@ -391,6 +391,7 @@ namespace CharacterCounter
         private void CloseApps(object sender = null, EventArgs e = null)
         {
             toolStripStatusLabel1.Text = "Shutting down...";
+            Working = MarkWorking(false, Working, theControlDictionary);
             Application.DoEvents();
             // Close Excel and Word, but don't flag an error if they are already closed.
             try
@@ -404,6 +405,24 @@ namespace CharacterCounter
             }
             try
             {
+                if (excelApp != null)
+                {
+                    // Close any open workbooks without saving
+                    try
+                    {
+
+                        foreach (WorkBook theWorkBook in excelApp.Workbooks)
+                        {
+                            theWorkBook.Close(false);  // Close without saving
+                        }
+
+                    }
+                    catch
+                    { }
+
+                }
+
+
                 excelApp.Quit();
                 NAR(excelApp);  // release any objects like workbooks because Excel doesn't always quit.
                 System.Threading.Thread.Sleep(5000); // and sleep five seconds
@@ -442,6 +461,7 @@ namespace CharacterCounter
              * The CharacterDescriptor class holds both the font and text information.
              */
             Button theButton = (Button)sender;
+            Working = MarkWorking(true, Working, theControlDictionary); // Mark as waiting
             try
             {
                 Stopwatch theStopwatch = new Stopwatch();
@@ -458,14 +478,11 @@ namespace CharacterCounter
                     /*
                      * Open the Word file
                      */
-                    EnableButtons(false, FileType); // Disable a whole lot of buttons
+                    //EnableButtons(false, FileType); // Disable a whole lot of buttons
                     //lngLink = theDocument.Sections[1].Headers[theIndex].Range.StoryType;
                     int CharacterCount = 0;  // Counter to measure progress
                     // Count the total characters
                     toolStripStatusLabel1.Text = theFile + " opened... ";
-                    btnPause.Enabled = true;
-                    btnPause.Text = "Pause";
-                    Paused = false;
                     theFirstFont = "";
                     toolStripProgressBar1.Value = 0;
                     Application.DoEvents();
@@ -503,7 +520,7 @@ namespace CharacterCounter
                         {
                             AggregateFileList = LoadAggregateStats(theAggregateDictionary, theAggregateSummaryDictionary, theDictionary, AggregateFileList, theFileName);
                             AggregateSaved = false;  // the list has changed.
-                            btnSaveAggregateStats.Enabled = !AggregateSaved;
+                            theControlDictionary[btnSaveAggregateStats.Name]  = !AggregateSaved  && AggregateStatsBox.Text != "" && FileCounter.Text != "0";  // Enable when we finish working and have counted some files
                         }
 
                         /*
@@ -524,8 +541,9 @@ namespace CharacterCounter
                             }
                             WriteOutput(theDictionary, theFirstFont, OutputDir, OutputFile, theFile);
                         }
+                        Working = MarkWorking(false, Working, theControlDictionary);
                         EnableButtons(true, FileType);
-                        btnSaveErrorList.Enabled = (listNormalisedErrors.Rows.Count > 0);
+                        btnSaveErrorList.Enabled = (listNormalisedErrors.Rows.Count > 0) && ((Individual && ErrorListBox.Text != "") || (!Individual && BulkErrorListBox.Text != ""));
                         theDictionary = null;  // release it.
                     }
                 }
@@ -539,7 +557,6 @@ namespace CharacterCounter
                 CombDecomposedChars.Enabled = true;
                 toolStripProgressBar1.Value = 0;
                 Registry.SetValue(keyName, "OutputDir", OutputDir);
-                theButton.Enabled = false;  // disable so you can't analyse the same file twice by mistake.
                 System.Media.SystemSounds.Beep.Play();  // and beep
 
             }
@@ -549,17 +566,18 @@ namespace CharacterCounter
                 MessageBox.Show(theException.Message + theException.StackTrace, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 CloseApps(this);
             }
+              theButton.Enabled = false;  // disable so you can't analyse the same file twice by mistake.
+
 
         }
         private void EnableButtons(bool Enable, int theFileType)
         {
             // Disable or enable a number of buttons
-            btnClose.Enabled = Enable;  // Disable the close - we are analysing
-            btnAnalyse.Enabled = Enable;
-            btnErrorList.Enabled = Enable;
-            btnSaveErrorList.Enabled = Enable;
-            CombDecomposedChars.Enabled = Enable;
-            AnalyseByFont.Enabled = Enable;
+            //btnAnalyse.Enabled = Enable;
+            //btnErrorList.Enabled = Enable;
+            btnSaveErrorList.Enabled = Enable && ((Individual && ErrorListBox.Text != "") || (!Individual && BulkErrorListBox.Text != ""));
+            //CombDecomposedChars.Enabled = Enable;
+            //AnalyseByFont.Enabled = Enable;
             btnDecompGlyph.Enabled = Enable && CombDecomposedChars.Checked;
             if (theFileType == WordDoc)
             {
@@ -568,10 +586,13 @@ namespace CharacterCounter
                 btnGetInput.Enabled = Enable;
                 btnDecompGlyph.Enabled = Enable;
                 btnFontListFile.Enabled = Enable;
-                btnSaveFontList.Enabled = Enable;
+                /*
+                 * Only enable the save buttons if there the file has been specified.
+                 */
+                btnSaveFontList.Enabled = Enable && ((Individual && FontListFileBox.Text != "") || (!Individual && BulkFontListFileBox.Text != ""));
                 btnStyleListFile.Enabled = Enable;
-                btnSaveStyles.Enabled = Enable;
-                btnXMLFile.Enabled = Enable;
+                btnSaveStyles.Enabled = Enable && ((Individual && StyleListFileBox.Text != "") || (!Individual && BulkStyleListBox.Text != ""));
+                btnXMLFile.Enabled = Enable && Individual && XMLFileBox.Text != "";
                 btnListFonts.Enabled = Enable;
                 btnGetStyles.Enabled = Enable;
             }
@@ -583,14 +604,12 @@ namespace CharacterCounter
             Stopwatch theStopwatch = new Stopwatch();
             theStopwatch.Start();
             // We write the results to Excel.
-            btnPause.Enabled = false;  // We can no longer pause
-            btnClose.Enabled = false;  // nor can we click on close
             Application.DoEvents();
             if (!Path.IsPathRooted(OutputFile))
             {
                 OutputFile = Path.Combine(OutputDir, OutputFile);  // Make it a complete directory
             }
-            toolStripStatusLabel1.Text = "Writing to Excel workbook " + Path.GetFileName(OutputFile) + "...";
+            toolStripStatusLabel1.Text = "Writing data to Excel workbook " + Path.GetFileName(OutputFile) + "...";
             Application.DoEvents();
             if (!DeleteFile(OutputFile))
             {
@@ -621,6 +640,7 @@ namespace CharacterCounter
                 }
             }
 
+            Working = MarkWorking(true, Working, theControlDictionary); // Disable buttons and textboxes
 
             ExcelRoot.Worksheet theSheet = theWorkbook.ActiveSheet;
             // Write the first output sheet.
@@ -628,6 +648,7 @@ namespace CharacterCounter
             if (theSummaryDictionary != null)  // We have aggregate results
             {
                 theSheet = theWorkbook.Sheets.Add(missing, theSheet, 1, ExcelRoot.XlSheetType.xlWorksheet);  // add the summary sheet
+                toolStripStatusLabel1.Text = "Writing summary statistics to Excel workbook " + Path.GetFileName(OutputFile) + "...";
                 WriteOutputSheet(theSummaryDictionary, theFont, theSheet, "Summary Statistics", false);  //
 
             }
@@ -657,7 +678,7 @@ namespace CharacterCounter
             toolStripStatusLabel1.Text = "Finished writing to Excel workbook " + Path.GetFileName(OutputFile) + " in " +
                 ((float)theStopwatch.ElapsedTicks / Stopwatch.Frequency).ToString("f2") + " seconds";
             toolStripProgressBar1.Value = 0; // reset
-            btnClose.Enabled = true;
+            Working = MarkWorking(false, Working, theControlDictionary);
             return true;
 
         }
@@ -781,6 +802,7 @@ namespace CharacterCounter
             excelApp.ActiveWindow.SplitColumn = 0;
             excelApp.ActiveWindow.SplitRow = 1;
             excelApp.ActiveWindow.FreezePanes = true;
+            toolStripProgressBar1.Value = 0;
         }
         private bool DeleteFile(string theFileName)
         {
@@ -805,7 +827,7 @@ namespace CharacterCounter
         }
         private void WriteFontList(string theFileName, string theHeader, ListBox theListBox)
         {
-            btnClose.Enabled = false;
+            Working = MarkWorking(true, Working, theControlDictionary);
             int RowCounter = 2;
             // Write the contents of a list box to Excel
             if (!DeleteFile(theFileName))
@@ -813,6 +835,8 @@ namespace CharacterCounter
                 return;
             }
             toolStripStatusLabel1.Text = "Writing to " + Path.GetFileName(theFileName);
+            toolStripProgressBar1.Maximum = theListBox.Items.Count;
+            toolStripProgressBar1.Value = 0;
             ExcelRoot.Workbook theWorkBook = excelApp.Workbooks.Add();
             ExcelRoot.Worksheet theSheet = theWorkBook.ActiveSheet;
             theSheet.Range["A1"].Value = theHeader;
@@ -825,13 +849,14 @@ namespace CharacterCounter
             theWorkBook.SaveAs(theFileName);
             theWorkBook.Close();
             toolStripStatusLabel1.Text = "Finished writing to " + Path.GetFileName(theFileName);
-            btnClose.Enabled = true;
+            toolStripProgressBar1.Value = 0;
+            Working = MarkWorking(false, Working, theControlDictionary);
             System.Media.SystemSounds.Beep.Play();  // and beep
             return;
         }
         private void WriteDataGridView(string theFileName, DataGridView theDataGridView)
         {
-            btnClose.Enabled = false;
+            Working = MarkWorking(true, Working, theControlDictionary);
             int RowCounter = 2;
             // Write the contents of a list box to Excel
             if (!DeleteFile(theFileName))
@@ -839,6 +864,8 @@ namespace CharacterCounter
                 return;
             }
             toolStripStatusLabel1.Text = "Writing to " + Path.GetFileName(theFileName);
+            toolStripProgressBar1.Maximum = theDataGridView.Rows.Count;
+            toolStripProgressBar1.Value = 0;
             ExcelRoot.Workbook theWorkBook = excelApp.Workbooks.Add();
             ExcelRoot.Worksheet theSheet = theWorkBook.ActiveSheet;
             theSheet.Range["A1"].Value = theDataGridView.Columns[0].HeaderText;
@@ -852,13 +879,16 @@ namespace CharacterCounter
 
                 theSheet.Range["A" + RowCounter.ToString()].Value = theRow.Cells[0].Value;
                 theSheet.Range["B" + RowCounter.ToString()].Value = theRow.Cells[1].Value;
+                toolStripProgressBar1.Value++;
+                Application.DoEvents();
                 RowCounter++;
             }
             theWorkBook.SaveAs(theFileName);
             theWorkBook.Close();
             toolStripStatusLabel1.Text = "Finished writing to " + Path.GetFileName(theFileName);
+            toolStripProgressBar1.Value = 0;
             System.Media.SystemSounds.Beep.Play();  // and beep
-            btnClose.Enabled = true;
+            Working = MarkWorking(false, Working, theControlDictionary);
             return;
         }
         private int AnalyseText(Dictionary<CharacterDescriptor, int> theDictionary,
@@ -869,7 +899,6 @@ namespace CharacterCounter
             toolStripStatusLabel1.Text = "Counting characters";
             CharacterCount += AnalyseString(theDictionary, theFont, theText, CharactersInText, CharacterCount, theStopwatch);
             listNormalisedErrors.Sort(listNormalisedErrors.Columns[0], ListSortDirection.Ascending);  // Sort first
-            btnPause.Enabled = false;
             return CharacterCount;
 
 
@@ -925,7 +954,6 @@ namespace CharacterCounter
                 + ((float)theStopwatch.ElapsedTicks / Stopwatch.Frequency).ToString("f2") + " seconds";
 
             toolStripProgressBar1.Maximum = RangeCharacterCount;  // To show progress, but the count isn't accurate.
-            btnPause.Enabled = true;
             Application.DoEvents();
             /*
                 * Look for text or symbols in the document
@@ -1213,7 +1241,6 @@ namespace CharacterCounter
                 CloseApps(this);
             }
             listNormalisedErrors.Sort(listNormalisedErrors.Columns[0], ListSortDirection.Ascending);  // Sort first
-            btnPause.Enabled = false;
             return CharacterCount;
         }
 
@@ -1506,7 +1533,14 @@ namespace CharacterCounter
         private void documentationToolStripMenuItem_Click(object sender, EventArgs e)
         {
             string HelpPath = Path.Combine(Application.StartupPath, "CharacterCounter.docx");
-            System.Diagnostics.Process.Start(HelpPath);
+            try
+            {
+                System.Diagnostics.Process.Start(HelpPath);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error opening file " + HelpPath + "\r" + ex.Message, "Error", MessageBoxButtons.OK);
+            }
         }
 
         private void aboutToolStripMenuItem_Click(object sender, EventArgs e)
@@ -1521,24 +1555,59 @@ namespace CharacterCounter
             System.Diagnostics.Process.Start("Wordpad.exe", '"' + HelpPath + '"');
         }
 
-        private void btnPause_Click(object sender, EventArgs e)
+
+        private bool MarkWorking(bool On, bool Working, Dictionary<string, bool> ControlDictionary)
         {
-            Paused = !Paused; // Toggle the pause flag
-            btnClose.Enabled = Paused;
-            if (Paused)
+            if (Working && On)
             {
-                toolStripStatusLabel1.Text = "Pausing...";
-                btnPause.Text = "Resume";
+                return true;  // Do no more if we are already working and want to mark as working
+            }
+            if (!Working && !On)
+            {
+                return false;  // Do no more if we are not working and want to mark as not working
+            }
+            // Mark the application state
+            //Application.UseWaitCursor = On;
+            this.UseWaitCursor = On;
+            if (On)
+            {
+                ControlDictionary.Clear();  // We are about to mark the controls as working and will record their current state
+            }
+            SwitchControl(this, !On, ControlDictionary);  // now enable or disable text boxes, buttons and check boxes
+            if (On)
+            {
+                btnClose.Text = "Abort";
+                btnClose.Enabled = true;  // allow us to abort if we wish
             }
             else
             {
-                toolStripStatusLabel1.Text = "Resuming...";
-                btnPause.Text = "Pause";
+                btnClose.Text = "Close";
+            }
+            return On;
+        }
+        private void SwitchControl(Control Parent, bool Enable, Dictionary<string, bool> ControlDictionary)
+        {
+            foreach (Control theControl in Parent.Controls)
+            {
+                if ((theControl is TextBox || theControl is Button || theControl is CheckBox) && theControl.Name != "btnPause")
+                {
+                    if (!Enable)
+                    {
+                        // We are about to disable it so we record its current state
+                        theControlDictionary.Add(theControl.Name, theControl.Enabled);
+                        theControl.Enabled = Enable;
+                    }
+                    else
+                    {
+                        // Get its previous state
+                        theControl.Enabled = theControlDictionary[theControl.Name];
+                    }
+
+                }
+                SwitchControl(theControl, Enable, ControlDictionary); // Handle daughter controls
             }
 
-            Application.DoEvents();
         }
-
 
         private void IncrementCount(Dictionary<CharacterDescriptor, int> theDictionary, CharacterDescriptor theKey)
         {
@@ -1620,25 +1689,6 @@ namespace CharacterCounter
                     + " chars. Approx time to finish analysis: " + TimeToFinish.ToString(@"hh\:mm\:ss"); ;
                 toolStripProgressBar1.Value = Math.Min(CharacterCount, toolStripProgressBar1.Maximum);
                 Application.DoEvents();
-                while (Paused)
-                {
-                    if (theStopwatch.IsRunning)
-                    {
-                        theStopwatch.Stop();
-                    }
-                    System.Threading.Thread.Sleep(1000); // wait a second
-                    toolStripStatusLabel1.Text = "Paused, click Resume to restart or Close to close";
-                    if (CloseApp)
-                    {
-                        /*
-                            * We have clicked Close, so we exit from here and stop doing the processing
-                            */
-                        theDocument.Close(false);  //Close the document
-                        return;  // exit
-                    }
-                    Application.DoEvents();
-
-                }
                 if (!theStopwatch.IsRunning)
                 {
                     theStopwatch.Start();
@@ -1653,15 +1703,11 @@ namespace CharacterCounter
         {
             // list the fonts in the documnent
             Control theControl = (Control)sender;
-            theControl.Enabled = false;
+           Working = MarkWorking(true, Working, theControlDictionary);
             Application.DoEvents();
             Stopwatch theStopwatch = new Stopwatch();
             theStopwatch.Start();
-            btnClose.Enabled = false;  // Disable the close - we are analysing
-            btnAnalyse.Enabled = false;
-            btnListFonts.Enabled = false;
             AnalyseByFont.Enabled = false;
-            CombDecomposedChars.Enabled = false;
             CombDecomposedChars.Enabled = false;
             toolStripProgressBar1.Value = 0;
             XmlNode theRoot = null;
@@ -1703,30 +1749,29 @@ namespace CharacterCounter
                     }
                 }
             }
-            btnClose.Enabled = true;  // Disable the close - we are analysing
-            btnAnalyse.Enabled = true;
-            btnListFonts.Enabled = true;
+            Working = MarkWorking(false, Working, theControlDictionary);
+            string theFontListFile = "";
             AnalyseByFont.Enabled = true;
             CombDecomposedChars.Enabled = true;
             toolStripStatusLabel1.Text = "Finished loading fonts in " +
                 ((float)theStopwatch.ElapsedTicks / Stopwatch.Frequency).ToString("f2") + " seconds";
+            if (Individual)
+            {
+                theFontListFile = FontListFileBox.Text;
+            }
+            else
+            {
+                theFontListFile = BulkFontListFileBox.Text;
+            }
             if (theControl.Name == "btnSaveFontList")
             {
-                string theFontListFile = "";
-                if (Individual)
-                {
-                    theFontListFile = FontListFileBox.Text;
-                }
-                else
-                {
-                    theFontListFile = BulkFontListFileBox.Text;
-                }
                 WriteFontList(theFontListFile, "List of fonts", FontList);
             }
+            Working = MarkWorking(false, Working, theControlDictionary);
+            btnSaveFontList.Enabled = theFontListFile != "";
             theStopwatch.Stop();
             theStopwatch = null;
-            theControl.Enabled = true;
-
+ 
         }
 
         private void InputFileBox_TextChanged(object sender, EventArgs e)
@@ -1751,7 +1796,6 @@ namespace CharacterCounter
             InputDir = Path.GetDirectoryName(openInputDialogue.FileName);
             Registry.SetValue(keyName, "InputDir", InputDir);
             btnAnalyse.Enabled = true;
-            btnPause.Enabled = false;
             saveExcelDialogue.FileName = OutputFileBox.Text;
             FileType = GetFileType(InputFileBox.Text, false);
             if (FileType == WordDoc)
@@ -1834,24 +1878,25 @@ namespace CharacterCounter
                 {
                     listStyles.Sort(listStyles.Columns[0], ListSortDirection.Ascending);  // Sort the list
                 }
-                if (theControl.Name == "btnSaveStyles")
-                {
-                    // Write the list to Excel
-                    string theStyleListFile = "";
-                    if (Individual)
-                    {
-                        theStyleListFile = StyleListFileBox.Text;
-                    }
-                    else
-                    {
-                        theStyleListFile = BulkStyleListBox.Text;
-                    }
-                    WriteDataGridView(theStyleListFile, listStyles);
-                    Registry.SetValue(keyName, "StyleDir", StyleDir);
+            }
+            string theStyleListFile = "";
+            if (Individual)
+            {
+                theStyleListFile = StyleListFileBox.Text;
+            }
+            else
+            {
+                theStyleListFile = BulkStyleListBox.Text;
+            }
+            if (theControl.Name == "btnSaveStyles")
+            {
+                // Write the list to Excel
+                 WriteDataGridView(theStyleListFile, listStyles);
+                Registry.SetValue(keyName, "StyleDir", StyleDir);
 
-                }
             }
             theControl.Enabled = true;
+            btnSaveStyles.Enabled = theStyleListFile != "";
             Application.DoEvents();
 
         }
@@ -2135,7 +2180,16 @@ namespace CharacterCounter
 
         private void btnSaveErrorList_Click(object sender, EventArgs e)
         {
-            WriteDataGridView(ErrorListBox.Text, listNormalisedErrors);
+            string theErrorFile;
+            if (Individual)
+            {
+                theErrorFile = ErrorListBox.Text;
+            }
+            else
+            {
+                theErrorFile = BulkErrorListBox.Text;
+            }
+            WriteDataGridView(theErrorFile, listNormalisedErrors);
             Registry.SetValue(keyName, "ErrorDir", ErrorDir);
 
         }
@@ -2204,6 +2258,13 @@ namespace CharacterCounter
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
+            if (Working)
+            {
+                // We are aborting
+                AggregateStats.Checked = false;  // So we don't try to save the file
+                CloseApps(sender, e);
+                return;  // and do no more
+            }
             if (AggregateStats.Checked && !AggregateSaved)
             {
                 AggregateSaved = WriteOutput(theAggregateDictionary, "", AggregateDir, AggregateStatsBox.Text, AggregateFileList, theAggregateSummaryDictionary);
@@ -2214,7 +2275,8 @@ namespace CharacterCounter
         private void btnSaveAggregateStats_Click(object sender, EventArgs e)
         {
             AggregateSaved = WriteOutput(theAggregateDictionary, "", AggregateDir, AggregateStatsBox.Text, AggregateFileList, theAggregateSummaryDictionary);
-            btnSaveAggregateStats.Enabled = !AggregateSaved;
+            btnSaveAggregateStats.Enabled = !AggregateSaved  && AggregateStatsBox.Text != "" && FileCounter.Text != "0";
+            System.Media.SystemSounds.Beep.Play();  // and beep
         }
 
         private void CombDecomposedChars_CheckStateChanged(object sender, EventArgs e)
@@ -2225,7 +2287,15 @@ namespace CharacterCounter
         private void CombiningCharacters_Click(object sender, EventArgs e)
         {
             string HelpPath = Path.Combine(Application.StartupPath, "CombiningCharacters.xlsm");
-            System.Diagnostics.Process.Start(HelpPath);
+            try
+            {
+                System.Diagnostics.Process.Start(HelpPath);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error opening file " + HelpPath + "\r" + ex.Message, "Error", MessageBoxButtons.OK );
+            }
+ 
 
         }
 
@@ -2248,10 +2318,9 @@ namespace CharacterCounter
                 OutputFolderBox.Text = OutputDir;
                 btnSaveFontList.Enabled = BulkFontListFileBox.Text != "";
                 btnSaveStyles.Enabled = BulkStyleListBox.Text != "";
-                btnSaveErrorList.Enabled = BulkErrorListbox.Text != "";
+                btnSaveErrorList.Enabled = BulkErrorListBox.Text != "";
                 btnGetFont.Enabled = true;
                 btnGetEncoding.Enabled = true;
-
                 ClearLists();
             }
         }
@@ -2259,9 +2328,14 @@ namespace CharacterCounter
         {
             //  Clear lists when switching back and forth between individual and bulk processing
             openInputDialogue.FileName = ""; // Forget any files we selected.
+            AggregateStatsBox.Text = "";  // and any aggregate files we specify
+            FileCounter.Text = 0.ToString();
             FontList.Items.Clear();
             listStyles.Rows.Clear();
             listNormalisedErrors.Rows.Clear();
+            theAggregateDictionary.Clear();
+            theAggregateSummaryDictionary.Clear();
+            btnSaveAggregateStats.Enabled = false;
             btnAnalyse.Enabled = false;
 
         }
@@ -2320,7 +2394,7 @@ namespace CharacterCounter
 
                     btnSaveFontList.Enabled = BulkFontListFileBox.Text != "" && btnListFonts.Enabled;
                     btnSaveStyles.Enabled = BulkStyleListBox.Text != "" && btnGetStyles.Enabled;
-                    btnSaveErrorList.Enabled = BulkErrorListbox.Text != "" && openInputDialogue.FileNames.Count() > 0;
+                    btnSaveErrorList.Enabled = BulkErrorListBox.Text != "" && openInputDialogue.FileNames.Count() > 0;
                 }
                 else
                 {
@@ -2380,8 +2454,6 @@ namespace CharacterCounter
             btnSaveErrorList.Enabled = theBox.Text != "";
 
         }
-
-
 
 
 
