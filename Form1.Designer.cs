@@ -601,9 +601,9 @@
             this.label9.AutoSize = true;
             this.label9.Location = new System.Drawing.Point(17, 513);
             this.label9.Name = "label9";
-            this.label9.Size = new System.Drawing.Size(114, 13);
+            this.label9.Size = new System.Drawing.Size(66, 13);
             this.label9.TabIndex = 53;
-            this.label9.Text = "Decomposed glyph file";
+            this.label9.Text = "Diacritics file";
             // 
             // WriteIndividualFile
             // 

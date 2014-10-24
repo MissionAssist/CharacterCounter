@@ -7,7 +7,7 @@
  *  
  *  The copyright is owned by MissionAssist as the work was carried out on their behalf.
  * 
- *  Written by Stephen Palmstrom, last modified 18 January 2014
+ *  Written by Stephen Palmstrom, last modified 24 October 2014
  *  
  */
 using System;
@@ -2146,7 +2146,7 @@ namespace CharacterCounter
 
                 if (theGlyphDictionary.Keys.Contains(FontName))
                 {
-                    theGlyphDictionary[FontName] += "|" + theChar;
+                    theGlyphDictionary[FontName] +=  theChar;
                 }
                 else
                 {
