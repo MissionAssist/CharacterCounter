@@ -7,7 +7,7 @@
  *  
  *  The copyright is owned by MissionAssist as the work was carried out on their behalf.
  * 
- *  Written by Stephen Palmstrom, last modified 24 October 2014
+ *  Written by Stephen Palmstrom, last modified 6 February 2017
  *  
  */
 using System;
@@ -55,6 +55,7 @@ namespace CharacterCounter
         private string FontDir = "";
         private string XMLDir = "";
         private string GlyphDir = "";
+        private string ContextDir = "";
         private string ErrorDir = "";
         private string AggregateDir = "";
 
@@ -62,6 +63,7 @@ namespace CharacterCounter
 
         private bool AggregateSaved = false;
         private bool Individual = true;
+        private bool AnalyseContext = false;
 
         private int FileType = WordDoc;
         //private XmlDocument theXMLDocument = new XmlDocument();  // make it global so we can save it.
@@ -79,10 +81,21 @@ namespace CharacterCounter
         private Dictionary<string, string> theGlyphDictionary = new Dictionary<string, string>(5); // to hold the regular expressions for decomposed characters by font.
         private Dictionary<string, Encoding> theEncodingDictionary = new Dictionary<string, Encoding>(30); // to hold the encoding dictionary
         private Dictionary<CharacterDescriptor, int> theAggregateDictionary =
-        new Dictionary<CharacterDescriptor, int>(1000, new CharacterEqualityComparer());
+            new Dictionary<CharacterDescriptor, int>(1000, new CharacterEqualityComparer());
         private Dictionary<CharacterDescriptor, int> theAggregateSummaryDictionary =
-        new Dictionary<CharacterDescriptor, int>(255, new CharacterEqualityComparer());
+            new Dictionary<CharacterDescriptor, int>(255, new CharacterEqualityComparer());
         private Dictionary<string, bool> theControlDictionary = new Dictionary<string, bool>(30); // To hold the state of the various controls
+        //
+        // Handle context analysis
+        //
+        private Dictionary<ContextDescriptor, int> theContextDictionary = 
+            new Dictionary<ContextDescriptor, int>(100, new ContextEqualityComparer());
+        private Dictionary<ContextDescriptor, int> theAggregateContextDictionary = 
+            new Dictionary<ContextDescriptor, int>(1000, new ContextEqualityComparer());
+        private Dictionary<ContextDescriptor, int> theAggregateContextSummaryDictionary =
+            new Dictionary<ContextDescriptor, int>(255, new ContextEqualityComparer());
+        private List<TargetDescriptor> TargetList = new List<TargetDescriptor>(5); // to hold a list of targets for which context is wanted.
+
         private bool Working = false;  // Flag if we are working
 
         private string AggregateFileList = "";
@@ -99,10 +112,10 @@ namespace CharacterCounter
         //
         //  Special characters
         //
-        string[] SpecialCharacterKeys = { "w:endnoteRef", "w:endnote", "w:footnoteRef", "w:footnote", "w:tab", "w:noBreakHyphen", 
+        string[] SpecialCharacterKeys = { "w:endnoteRef", "w:endnote", "w:footnoteRef", "w:footnote", "w:tab", "w:noBreakHyphen",
                                             "w:softHyphen", "w:separator", "w:continuationSeparator"};
         string[] SpecialCharacterValues =
-            { 
+            {
                 Convert.ToString("\x0002"),
                 Convert.ToString("\x0002"),
                 Convert.ToString("\x0002"),
@@ -116,7 +129,7 @@ namespace CharacterCounter
         /*
          * Variables for handling Pause and Resume
          */
-        private bool CloseApp = false;
+        //private bool CloseApp = false;
 
         /*
          * Character codes can be displayed as decimal, hexadecimal or USV
@@ -161,6 +174,7 @@ namespace CharacterCounter
                 XMLDir = GetDirectory("XMLDir", OutputDir);
                 ErrorDir = GetDirectory("ErrorDir", OutputDir);
                 GlyphDir = GetDirectory("GlyphDir", InputDir);
+                ContextDir = GetDirectory("ContextDir", InputDir);
                 AggregateDir = GetDirectory("AggregateDir", OutputDir);
             }
             catch (Exception Ex)
@@ -230,6 +244,16 @@ namespace CharacterCounter
                         Registry.SetValue(keyName, "GlyphDir", GlyphDir);
                     }
                     break;
+                case "btnContextCharFile":
+                    openContextCharFileDialogue.InitialDirectory = ContextDir;
+                    if (openContextCharFileDialogue.ShowDialog() == DialogResult.OK)
+                    {
+                        ContextCharacterFileBox.Text = openContextCharFileDialogue.FileName;
+                        ContextDir = Path.GetDirectoryName(openContextCharFileDialogue.FileName);
+                        Registry.SetValue(keyName, "ContextDir", ContextDir);
+                    }
+                    break;
+
             }
         }
         private int GetFileType(string FileName, bool JustType = true)
@@ -383,7 +407,7 @@ namespace CharacterCounter
         }
         private void btnClose_Click(object sender, EventArgs e)
         {
-            CloseApp = true;
+            //CloseApp = true;
             Application.DoEvents();
             this.Close();
             Application.Exit();
@@ -466,9 +490,14 @@ namespace CharacterCounter
             {
                 Stopwatch theStopwatch = new Stopwatch();
                 listNormalisedErrors.Rows.Clear();  // Reset the normalised errors list
+                // Get the context targets if the file is there and we haven't loaded it already
+                if (AnalyseContext && TargetList.Count == 0)
+                {
+                    LoadTargets(TargetList, excelApp);
+                }
                 foreach (string theFile in openInputDialogue.FileNames)
                 {
-                    Dictionary<CharacterDescriptor, int> theDictionary =
+                    Dictionary<CharacterDescriptor, int> theCharDictionary =
                             new Dictionary<CharacterDescriptor, int>(500, new CharacterEqualityComparer());
                     toolStripProgressBar1.Value = 0;
                     // This is so we can remember the textboxes as we find them.
@@ -498,7 +527,7 @@ namespace CharacterCounter
                             if (DocumentLoader(theFile, theXMLDictionary, ref nsManager))
                             {
                                 Success = true;
-                                CharacterCount = AnalyseDocument(theDictionary, theXMLDictionary[theFileName], ref theFirstFont, nsManager, CharacterCount,
+                                CharacterCount = AnalyseDocument(theCharDictionary, theContextDictionary, theXMLDictionary[theFileName], ref theFirstFont, nsManager, CharacterCount,
                                     theStopwatch);
                             }
                             break;
@@ -506,7 +535,7 @@ namespace CharacterCounter
                             if (DocumentLoader(theFile, theTextDictionary))
                             {
                                 Success = true;
-                                CharacterCount = AnalyseText(theDictionary, theTextDictionary[theFileName], FontBox.Text, CharacterCount, theStopwatch);
+                                CharacterCount = AnalyseText(theCharDictionary, theContextDictionary, theTextDictionary[theFileName], FontBox.Text, CharacterCount, theStopwatch);
                                 theFirstFont = FontBox.Text;
                             }
                             break;
@@ -518,9 +547,11 @@ namespace CharacterCounter
                          */
                         if (AggregateStats.Checked)
                         {
-                            AggregateFileList = LoadAggregateStats(theAggregateDictionary, theAggregateSummaryDictionary, theDictionary, AggregateFileList, theFileName);
+                            AggregateFileList = LoadAggregateStats(theAggregateDictionary, theAggregateSummaryDictionary, theCharDictionary, 
+                                theAggregateContextDictionary, theAggregateContextSummaryDictionary, theContextDictionary,
+                                AggregateFileList, theFileName);
                             AggregateSaved = false;  // the list has changed.
-                            theControlDictionary[btnSaveAggregateStats.Name]  = !AggregateSaved  && AggregateStatsBox.Text != "" && FileCounter.Text != "0";  // Enable when we finish working and have counted some files
+                            theControlDictionary[btnSaveAggregateStats.Name] = !AggregateSaved && AggregateStatsBox.Text != "" && FileCounter.Text != "0";  // Enable when we finish working and have counted some files
                         }
 
                         /*
@@ -539,12 +570,12 @@ namespace CharacterCounter
                                 OutputFile = Path.Combine(OutputDir, Path.GetFileNameWithoutExtension(theFile) +
                                 OutputFileSuffixBox.Text + ".xlsx");
                             }
-                            WriteOutput(theDictionary, theFirstFont, OutputDir, OutputFile, theFile);
+                            WriteOutput(theCharDictionary, theContextDictionary, theFirstFont, OutputDir, OutputFile, theFile);
                         }
                         Working = MarkWorking(false, Working, theControlDictionary);
                         EnableButtons(true, FileType);
                         btnSaveErrorList.Enabled = (listNormalisedErrors.Rows.Count > 0) && ((Individual && ErrorListBox.Text != "") || (!Individual && BulkErrorListBox.Text != ""));
-                        theDictionary = null;  // release it.
+                        theCharDictionary = null;  // release it.
                     }
                 }
                 if (!Individual && AggregateStats.Checked)
@@ -566,7 +597,7 @@ namespace CharacterCounter
                 MessageBox.Show(theException.Message + theException.StackTrace, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 CloseApps(this);
             }
-              theButton.Enabled = false;  // disable so you can't analyse the same file twice by mistake.
+            theButton.Enabled = false;  // disable so you can't analyse the same file twice by mistake.
 
 
         }
@@ -598,8 +629,8 @@ namespace CharacterCounter
             }
         }
 
-        private bool WriteOutput(Dictionary<CharacterDescriptor, int> theDictionary, string theFont, string OutputDir, string OutputFile,
-            string InputFile, Dictionary<CharacterDescriptor, int> theSummaryDictionary = null)
+        private bool WriteOutput(Dictionary<CharacterDescriptor, int> theCharDictionary, Dictionary<ContextDescriptor, int> theContextDictionary, string theFont, string OutputDir, string OutputFile,
+            string InputFile, Dictionary<CharacterDescriptor, int> theSummaryCharDictionary = null, Dictionary<ContextDescriptor, int> theSummaryContextDictionary = null)
         {
             Stopwatch theStopwatch = new Stopwatch();
             theStopwatch.Start();
@@ -644,15 +675,31 @@ namespace CharacterCounter
 
             ExcelRoot.Worksheet theSheet = theWorkbook.ActiveSheet;
             // Write the first output sheet.
-            WriteOutputSheet(theDictionary, theFont, theSheet, "Statistics", theSummaryDictionary != null);  //
-            if (theSummaryDictionary != null)  // We have aggregate results
+            WriteOutputSheet(theCharDictionary, theFont, theSheet, "Statistics", theSummaryCharDictionary != null);  //
+
+            if (theSummaryCharDictionary != null)  // We have aggregate results
             {
                 theSheet = theWorkbook.Sheets.Add(missing, theSheet, 1, ExcelRoot.XlSheetType.xlWorksheet);  // add the summary sheet
                 toolStripStatusLabel1.Text = "Writing summary statistics to Excel workbook " + Path.GetFileName(OutputFile) + "...";
-                WriteOutputSheet(theSummaryDictionary, theFont, theSheet, "Summary Statistics", false);  //
+                WriteOutputSheet(theSummaryCharDictionary, theFont, theSheet, "Summary Statistics", false);  //
 
             }
-            theWorkbook.SaveAs(OutputFile);  
+            // Now look at context
+
+            if (AnalyseContext)
+            {
+                theSheet = theWorkbook.Sheets.Add(missing, theSheet, 1, ExcelRoot.XlSheetType.xlWorksheet);
+                WriteContextOutputSheet(theContextDictionary, theFont, theSheet, "Context", theSummaryContextDictionary != null);
+                if (theSummaryContextDictionary != null)  // We have aggregate results
+                {
+                    theSheet = theWorkbook.Sheets.Add(missing, theSheet, 1, ExcelRoot.XlSheetType.xlWorksheet);  // add the summary sheet
+                    toolStripStatusLabel1.Text = "Writing context summary statistics to Excel workbook " + Path.GetFileName(OutputFile) + "...";
+                    WriteContextOutputSheet(theSummaryContextDictionary, theFont, theSheet, "Summary Context Statistics", false);  //
+
+                }
+
+            }
+            theWorkbook.SaveAs(OutputFile);
             //
             //Create a new worksheet for the metadata and write to it
             //
@@ -804,6 +851,153 @@ namespace CharacterCounter
             excelApp.ActiveWindow.FreezePanes = true;
             toolStripProgressBar1.Value = 0;
         }
+        private void WriteContextOutputSheet(Dictionary<ContextDescriptor, int> theDictionary, string theFont, ExcelRoot.Worksheet theSheet, string SheetName, bool Aggregate)
+        {
+
+            theSheet.Name = SheetName;
+
+            /*
+            * Column headers
+            */
+            int Column = 1;
+            string FontColumnLetter = "A";
+            string TargetUSVColumnLetter = "A";
+            string ContextUSVColumnLetter = "B";
+            string TargetLetter = "C";
+            string ContextColumnLetter = "D";
+            string CountColumnLetter = "E";
+
+            int FontNumber = (int)Convert.ToChar(FontColumnLetter);
+            int TargetUSVNumber = (int)Convert.ToChar(TargetUSVColumnLetter);
+            int ContextUSVColumnNumber = (int)Convert.ToChar(ContextUSVColumnLetter);
+            int ContextColumnNumber = (int)Convert.ToChar(ContextColumnLetter);
+            int CountColumnNumber = (int)Convert.ToChar(CountColumnLetter);
+            int TargetNumber = (int)Convert.ToChar(TargetLetter);
+            toolStripProgressBar1.Value = 0; // reset
+            toolStripProgressBar1.Maximum = theDictionary.Count;
+            if (Aggregate)
+            {
+                // we are writing an aggregate file and will need a summary worksheet, too.
+                theSheet.Cells[1, Column++].Value = "Filename";
+                // Increment the column numbers for glyph and the final column
+                TargetUSVNumber++;
+                ContextUSVColumnNumber++;
+                FontNumber++;
+                ContextColumnNumber++;
+                CountColumnNumber++;
+                TargetNumber++;
+            }
+            if (AnalyseByFont.Checked)
+            {
+                theSheet.Cells[1, Column++].Value = "Font";
+                TargetUSVNumber++;
+                ContextColumnNumber++;
+                ContextUSVColumnNumber++;
+                CountColumnNumber++;
+                TargetNumber++;
+            }
+            TargetUSVColumnLetter = Convert.ToChar(TargetUSVNumber).ToString();
+            ContextColumnLetter = Convert.ToChar(ContextColumnNumber).ToString();
+            ContextUSVColumnLetter = Convert.ToChar(ContextUSVColumnNumber).ToString();
+            CountColumnLetter = Convert.ToChar(CountColumnNumber).ToString();
+            TargetLetter = Convert.ToChar(TargetNumber).ToString();
+            FontColumnLetter = Convert.ToChar(FontNumber).ToString();
+
+
+            theSheet.Cells[1, Column++].Value = "Target (USV)";
+            theSheet.Cells[1, Column++].value = "Context(USV)";
+            theSheet.Cells[1, Column++].Value = "Target (Glyph)";
+            theSheet.Cells[1, Column++].Value = "Context";
+            theSheet.Cells[1, Column].Value = "Count";
+            // Now format some cells
+            string theRowString = (theDictionary.Count + 1).ToString();
+            theSheet.Range[TargetUSVColumnLetter + "1:" + ContextUSVColumnLetter + theRowString].HorizontalAlignment = ExcelRoot.XlHAlign.xlHAlignLeft;
+            theSheet.Range["A1:" + ContextColumnLetter + theRowString].VerticalAlignment = ExcelRoot.XlVAlign.xlVAlignBottom;
+            // and the counts
+            theSheet.Range[TargetLetter + "2:" + TargetLetter + theRowString].HorizontalAlignment = ExcelRoot.XlHAlign.xlHAlignCenter;
+            theSheet.Range[ContextColumnLetter + "2:" + ContextColumnLetter + theRowString].HorizontalAlignment = ExcelRoot.XlHAlign.xlHAlignLeft;
+            theSheet.Range[CountColumnLetter + "2:" + CountColumnLetter + theRowString].HorizontalAlignment = ExcelRoot.XlHAlign.xlHAlignRight;
+            theSheet.Range[CountColumnLetter + "2:" + CountColumnLetter + theRowString].NumberFormat = "#,##0";
+            // Align the top row
+            string RangeString = "A1:" + CountColumnLetter + "1";
+            theSheet.Range[RangeString].Font.Bold = true;  // Make the headings bold.
+            theSheet.Range[RangeString].HorizontalAlignment = ExcelRoot.XlHAlign.xlHAlignCenter;  // Centre
+            theSheet.Range[RangeString].VerticalAlignment = ExcelRoot.XlVAlign.xlVAlignTop; // Align at the top
+            theSheet.Range[RangeString].WrapText = true;
+            // Size some column widths
+            theSheet.Range[ContextColumnLetter + ":" + ContextColumnLetter].EntireColumn.ColumnWidth = 30;  // allow for 30 character font names
+            theSheet.Range[ContextUSVColumnLetter + ":" + ContextUSVColumnLetter].EntireColumn.ColumnWidth = 90;  // allow for 30 character font names
+
+            TargetDescriptor theTargetDescriptor = new TargetDescriptor();  // To expose its functions
+            int theRow = 2;
+            foreach (KeyValuePair<ContextDescriptor, int> kvp in theDictionary)
+            {
+                /*
+                    * Go through the dictionary writing to the worksheet
+                    */
+                Column = 1;
+                if (Aggregate)
+                {
+                    theSheet.Cells[theRow, Column++].Value = kvp.Key.FileName;
+                }
+                if (AnalyseByFont.Checked)
+                {
+                    theSheet.Cells[theRow, Column++].Value = kvp.Key.Font;
+                }
+                theSheet.Cells[theRow, Column++].Value = theTargetDescriptor.GetHex(kvp.Key.Target, "U+", " "); // Target USV
+                theSheet.Cells[theRow, Column++].Value = theTargetDescriptor.GetHex(kvp.Key.Context, "U+", " "); // Context USV
+
+                theSheet.Cells[theRow, Column++].Value = kvp.Key.Target;  // Write the glyph
+
+                theSheet.Cells[theRow, Column++].Value = kvp.Key.Context;  // Write the context as glyphs
+                if (AnalyseByFont.Checked)
+                {
+                    theSheet.Cells[theRow, Column - 2].Font.Name = kvp.Key.Font;  // and set the font.
+                    theSheet.Cells[theRow, Column - 1].Font.Name = kvp.Key.Font;  // and set the font.
+                }
+                else
+                {
+                    theSheet.Cells[theRow, Column - 2].Font.Name = theFont;  // Set the cell to the first font we found
+                    theSheet.Cells[theRow, Column - 1].Font.Name = theFont;  // Set the cell to the first font we found
+                }
+                theSheet.Cells[theRow, Column++].Value = kvp.Value;  // the count
+                theRow++;
+                toolStripProgressBar1.Value = theRow - 2;
+                Application.DoEvents();
+            }
+
+            /*
+                * Now sort by USV value and, if analysing by font, font name
+                */
+
+            ExcelRoot.Range CharStats = excelApp.get_Range("A1", ContextColumnLetter + theRowString);
+            // Now format all cells
+            if (AnalyseByFont.Checked)
+            {
+                CharStats.Sort(CharStats.Columns[4], ExcelRoot.XlSortOrder.xlAscending,
+                    CharStats.Columns[1], missing, ExcelRoot.XlSortOrder.xlAscending,
+                    missing, ExcelRoot.XlSortOrder.xlAscending, ExcelRoot.XlYesNoGuess.xlYes);
+                string FontRange = FontColumnLetter + ":" + FontColumnLetter;
+                theSheet.Range[FontRange].EntireColumn.ColumnWidth = 30;  // allow for 30 character font names
+                theSheet.Range[FontRange].EntireColumn.HorizontalAlignment = ExcelRoot.XlHAlign.xlHAlignLeft;
+            }
+            else
+            {
+                CharStats.Sort(CharStats.Columns[3], ExcelRoot.XlSortOrder.xlAscending,
+                    missing, missing, ExcelRoot.XlSortOrder.xlAscending,
+                    missing, ExcelRoot.XlSortOrder.xlAscending, ExcelRoot.XlYesNoGuess.xlYes);
+
+            }
+
+
+            // and return to A1
+            theSheet.Range["A1"].Select();
+            // and freeze the top row
+            excelApp.ActiveWindow.SplitColumn = 0;
+            excelApp.ActiveWindow.SplitRow = 1;
+            excelApp.ActiveWindow.FreezePanes = true;
+            toolStripProgressBar1.Value = 0;
+        }
         private bool DeleteFile(string theFileName)
         {
             DialogResult Success = DialogResult.Retry;
@@ -891,19 +1085,20 @@ namespace CharacterCounter
             Working = MarkWorking(false, Working, theControlDictionary);
             return;
         }
-        private int AnalyseText(Dictionary<CharacterDescriptor, int> theDictionary,
+        private int AnalyseText(Dictionary<CharacterDescriptor, int> theCharacterDictionary, Dictionary<ContextDescriptor, int> theContextDictionary,
             string theText, string theFont, int CharacterCount, Stopwatch theStopwatch)
         {
             // Analyse a text document
             int CharactersInText = theText.Length;
             toolStripStatusLabel1.Text = "Counting characters";
-            CharacterCount += AnalyseString(theDictionary, theFont, theText, CharactersInText, CharacterCount, theStopwatch);
+            CharacterCount += AnalyseString(theCharacterDictionary, theContextDictionary,
+                theFont, theText, CharactersInText, CharacterCount, theStopwatch);
             listNormalisedErrors.Sort(listNormalisedErrors.Columns[0], ListSortDirection.Ascending);  // Sort first
             return CharacterCount;
 
 
         }
-        private int AnalyseDocument(Dictionary<CharacterDescriptor, int> theDictionary,
+        private int AnalyseDocument(Dictionary<CharacterDescriptor, int> theCharacterDictionary, Dictionary<ContextDescriptor, int> theContextDictionary,
             XmlDocument theXMLDocument, ref string theFirstFont, XmlNamespaceManager nsManager, int CharacterCount, Stopwatch theStopwatch)
         {
             // Analyse the contents of a character string
@@ -913,7 +1108,8 @@ namespace CharacterCounter
             int RangeCharacterCount = 0;
             int TextCount = 0;  // Count separately for troubleshooting purposes
             int OtherCount = 0;
-            theDictionary.Clear();  // Clear the dictionary
+            theCharacterDictionary.Clear();  // Clear the dictionary
+            theContextDictionary.Clear();
             //
             //  Count the characters
             //
@@ -1019,7 +1215,8 @@ namespace CharacterCounter
                                     else
                                     {
                                         // Analyse the text string, then remember the old font and start a new text string
-                                        CharacterCount = AnalyseString(theDictionary, OldFontName, TextString, RangeCharacterCount, CharacterCount, theStopwatch);
+                                        CharacterCount = AnalyseString(theCharacterDictionary, theContextDictionary, OldFontName, TextString,
+                                            RangeCharacterCount, CharacterCount, theStopwatch);
                                         OldFontName = FontName;
                                         TextString = Convert.ToString(theChar); // make it a string concatenating it with previous symbols. 
                                     }
@@ -1055,7 +1252,7 @@ namespace CharacterCounter
                                         }
                                         else
                                         {
-                                            CharacterCount = AnalyseString(theDictionary, OldFontName, TextString, RangeCharacterCount, CharacterCount, theStopwatch);
+                                            CharacterCount = AnalyseString(theCharacterDictionary, theContextDictionary,  OldFontName, TextString, RangeCharacterCount, CharacterCount, theStopwatch);
                                             OldFontName = FontName;
                                             TextString = theText.InnerText;
                                         }
@@ -1102,11 +1299,11 @@ namespace CharacterCounter
                             if (TextString != "")
                             {
                                 // We have some text to process
-                                CharacterCount = AnalyseString(theDictionary, FontName, TextString, RangeCharacterCount, CharacterCount, theStopwatch);
+                                CharacterCount = AnalyseString(theCharacterDictionary, theContextDictionary, FontName, TextString, RangeCharacterCount, CharacterCount, theStopwatch);
                                 TextString = "";
                                 // Now add the end of line marker
                             }
-                            CharacterCount = AnalyseString(theDictionary, theParagraphFont, "\r", RangeCharacterCount, CharacterCount, theStopwatch);
+                            CharacterCount = AnalyseString(theCharacterDictionary, theContextDictionary, theParagraphFont, "\r", RangeCharacterCount, CharacterCount, theStopwatch);
 
 
                         }
@@ -1119,7 +1316,7 @@ namespace CharacterCounter
                             {
                                 TextString += "\f";  // section/page break gives a form feed.
                             }
-                            CharacterCount = AnalyseString(theDictionary, FontName, TextString, RangeCharacterCount, CharacterCount, theStopwatch);
+                            CharacterCount = AnalyseString(theCharacterDictionary, theContextDictionary, FontName, TextString, RangeCharacterCount, CharacterCount, theStopwatch);
                             TextString = "";
                         }
                     }
@@ -1220,7 +1417,7 @@ namespace CharacterCounter
                             }
                         }
                         */
-                        CharacterCount = AnalyseString(theDictionary, "", TextString, RangeCharacterCount, CharacterCount, theStopwatch);
+                        CharacterCount = AnalyseString(theCharacterDictionary, theContextDictionary, "", TextString, RangeCharacterCount, CharacterCount, theStopwatch);
                         TextString = "";  // clear the text string.
 
                     }
@@ -1381,7 +1578,8 @@ namespace CharacterCounter
                 return InputType;
             }
         }
-        private int AnalyseString(Dictionary<CharacterDescriptor, int> theDictionary, string FontName, string TextString, int RangeCharacterCount, int CharacterCount, Stopwatch theStopwatch)
+        private int AnalyseString(Dictionary<CharacterDescriptor, int> theCharacterDictionary, Dictionary<ContextDescriptor, int> theContextDictionary,
+            string FontName, string TextString, int RangeCharacterCount, int CharacterCount, Stopwatch theStopwatch)
         {
             /*
              * We shall first use the data for legacy decomposed characters to count them before we use the built-in functions that handle
@@ -1402,7 +1600,7 @@ namespace CharacterCounter
                     {
                         string theString = theMatch.Value.ToString();
                         theKey = new CharacterDescriptor(FontName, theString);
-                        IncrementCount(theDictionary, theKey);
+                        IncrementCharCount(theCharacterDictionary, theKey);
                         CharacterCount += theString.Length;
                         ReportProgress(CharacterCount, RangeCharacterCount, theStopwatch);
 
@@ -1440,7 +1638,7 @@ namespace CharacterCounter
                         theKey = new CharacterDescriptor(theString);
                     }
                     CharacterCount += theString.Length;
-                    IncrementCount(theDictionary, theKey);
+                    IncrementCharCount(theCharacterDictionary, theKey);
                     ReportProgress(CharacterCount, RangeCharacterCount, theStopwatch);
                     if (theString.Length > 1)
                     {
@@ -1460,12 +1658,35 @@ namespace CharacterCounter
                     {
                         theKey = new CharacterDescriptor(tmpString[i].ToString());
                     }
-                    IncrementCount(theDictionary, theKey);
+                    IncrementCharCount(theCharacterDictionary, theKey);
                     ReportProgress(CharacterCount, RangeCharacterCount, theStopwatch);
                     CharacterCount++;
                 }
             }
+            // We shall now look for contexts
+            if (AnalyseContext)
+            {
+                foreach(TargetDescriptor theTarget in TargetList)
+                {
+                    string pattern = theTarget.GetRegEx();
+                    MatchCollection contexts = Regex.Matches(TextString, pattern);
+                    ContextDescriptor theContextKey;
+                    foreach (Match context in contexts)
+                    {
+                        ContextDescriptor theContext = new ContextDescriptor(FontName, theTarget.Target, context.ToString());
+                        if (AnalyseByFont.Checked)
+                        {
+                            theContextKey = new ContextDescriptor(FontName, theTarget.Target, context.ToString());
+                        }
+                        else
+                        {
+                            theContextKey = new ContextDescriptor(theTarget.Target, context.ToString());
+                        }
+                        IncrementContextCount(theContextDictionary, theContextKey);
+                    }
 
+                }
+            }
             return CharacterCount;
         }
         private void CheckNormalisation(string theString)
@@ -1609,7 +1830,7 @@ namespace CharacterCounter
 
         }
 
-        private void IncrementCount(Dictionary<CharacterDescriptor, int> theDictionary, CharacterDescriptor theKey)
+        private void IncrementCharCount(Dictionary<CharacterDescriptor, int> theDictionary, CharacterDescriptor theKey)
         {
             /*
              * Increment the value of the relevant key, and handle a non-existent value.
@@ -1635,8 +1856,38 @@ namespace CharacterCounter
             }
             return;
         }
-        private string LoadAggregateStats(Dictionary<CharacterDescriptor, int> theMultiDictionary, Dictionary<CharacterDescriptor, int> theMultiSummaryDictionary, Dictionary<CharacterDescriptor, int>
-            theIndividualDictionary, string FileList, string InputFile)
+        private void IncrementContextCount(Dictionary<ContextDescriptor, int> theDictionary, ContextDescriptor theKey)
+        {
+            /*
+             * Increment the value of the relevant key, and handle a non-existent value.
+             */
+            if (theDictionary.Keys.Contains(theKey))
+            {
+                /*
+                 * Increment the character count
+                 */
+                //DateTime Start = DateTime.Now;
+                theDictionary[theKey]++;
+                //toolStripStatusLabel2.Text = DateTime.Now.Subtract(Start).TotalSeconds.ToString();
+            }
+            else
+            {
+                /*
+                 * If haven't met the character/font combination before, the increment operation fails
+                 * so we come here and generate a new entry with a count of 1
+                 */
+                //DateTime Start = DateTime.Now;
+                theDictionary.Add(theKey, 1);
+                // toolStripStatusLabel2.Text = " Key added in " + DateTime.Now.Subtract(Start).TotalSeconds.ToString();
+            }
+            return;
+        }
+
+        private string LoadAggregateStats(Dictionary<CharacterDescriptor, int> theMultiDictionary, Dictionary<CharacterDescriptor, int> theMultiSummaryDictionary,
+            Dictionary<CharacterDescriptor, int> theIndividualDictionary,
+            Dictionary<ContextDescriptor, int> theMultiContextDictionary, Dictionary<ContextDescriptor, int> theMultiContextSummaryDictionary,
+            Dictionary<ContextDescriptor, int> theIndividualContextDictionary,
+            string FileList, string InputFile)
         {
             // Here is where we load the aggregate statistics dictionary.
             string tmpString = FileList;
@@ -1649,13 +1900,29 @@ namespace CharacterCounter
                  * We maintain two aggregate dictionaries, one with character counts by filename and font and character, and the other just by font and character.
                  */
                 tmpKey.FileName = null;  // Make sure the file name is null for the summary.
-                AddToDictionary(theMultiSummaryDictionary, tmpKey, kvp.Value); // just font and character
+                AddToCharDictionary(theMultiSummaryDictionary, tmpKey, kvp.Value); // just font and character
 
                 tmpKey2.FileName = InputFile;
-                AddToDictionary(theMultiDictionary, tmpKey2, kvp.Value);  // and the filename, too.
+                AddToCharDictionary(theMultiDictionary, tmpKey2, kvp.Value);  // and the filename, too.
 
 
             }
+            foreach (KeyValuePair<ContextDescriptor, int> kvp in theIndividualContextDictionary)
+            {
+                ContextDescriptor tmpKey = new ContextDescriptor(kvp.Key);
+                ContextDescriptor tmpKey2 = new ContextDescriptor(tmpKey);
+                /*
+                 * We maintain two aggregate dictionaries, one with character counts by filename and font and character, and the other just by font and character.
+                 */
+                tmpKey.FileName = null;  // Make sure the file name is null for the summary.
+                AddToContextDictionary(theMultiContextSummaryDictionary, tmpKey, kvp.Value); // just font and character
+
+                tmpKey2.FileName = InputFile;
+                AddToContextDictionary(theMultiContextDictionary, tmpKey2, kvp.Value);  // and the filename, too.
+
+
+            }
+
             if (tmpString != "")
             {
                 tmpString += ", ";
@@ -1665,7 +1932,7 @@ namespace CharacterCounter
             FileCounter.Text = Counter.ToString();
             return tmpString;
         }
-        private void AddToDictionary (Dictionary<CharacterDescriptor, int> theDictionary, CharacterDescriptor theKey, int theCount)
+        private void AddToCharDictionary(Dictionary<CharacterDescriptor, int> theDictionary, CharacterDescriptor theKey, int theCount)
         {
             // Add to a CharacterDescriptor dictionary if the key isn't there, otherwise increment a count.
             if (theDictionary.Keys.Contains(theKey))
@@ -1679,6 +1946,21 @@ namespace CharacterCounter
 
 
         }
+        private void AddToContextDictionary(Dictionary<ContextDescriptor, int> theDictionary, ContextDescriptor theKey, int theCount)
+        {
+            // Add to a CharacterDescriptor dictionary if the key isn't there, otherwise increment a count.
+            if (theDictionary.Keys.Contains(theKey))
+            {
+                theDictionary[theKey] += theCount;
+            }
+            else
+            {
+                theDictionary.Add(theKey, theCount);
+            }
+
+
+        }
+
         private void ReportProgress(int CharacterCount, int RangeCharacterCount, Stopwatch theStopwatch)
         {
             if ((CharacterCount % 100) == 0)
@@ -1703,7 +1985,7 @@ namespace CharacterCounter
         {
             // list the fonts in the documnent
             Control theControl = (Control)sender;
-           Working = MarkWorking(true, Working, theControlDictionary);
+            Working = MarkWorking(true, Working, theControlDictionary);
             Application.DoEvents();
             Stopwatch theStopwatch = new Stopwatch();
             theStopwatch.Start();
@@ -1771,7 +2053,7 @@ namespace CharacterCounter
             btnSaveFontList.Enabled = theFontListFile != "";
             theStopwatch.Stop();
             theStopwatch = null;
- 
+
         }
 
         private void InputFileBox_TextChanged(object sender, EventArgs e)
@@ -1849,14 +2131,14 @@ namespace CharacterCounter
                                     tmpStyle = theNameNode.Attributes["w:val"].Value;
                                 }
                             }
-                           // Create a new row, and add it if we haven't already got it.
+                            // Create a new row, and add it if we haven't already got it.
                             DataGridViewRow theRow = new DataGridViewRow();
                             Style theStyle = new Style(tmpStyle, theStyleDictionary[theStyleID]);
                             if (!theStyleList.Keys.Contains(theStyle))
                             {
                                 theStyleList.Add(theStyle, true);
                             }
-                       }
+                        }
                     }
                 }
 
@@ -1891,7 +2173,7 @@ namespace CharacterCounter
             if (theControl.Name == "btnSaveStyles")
             {
                 // Write the list to Excel
-                 WriteDataGridView(theStyleListFile, listStyles);
+                WriteDataGridView(theStyleListFile, listStyles);
                 Registry.SetValue(keyName, "StyleDir", StyleDir);
 
             }
@@ -1934,7 +2216,7 @@ namespace CharacterCounter
                                 return null;
                             }
                             if (theResult == DialogResult.Ignore)
-                            { 
+                            {
                                 return null;
                             }
                         }
@@ -1948,7 +2230,7 @@ namespace CharacterCounter
             catch (Exception Ex)
             {
                 MessageBox.Show(Ex.Message + "\r" + Ex.StackTrace, "Error opening document", MessageBoxButtons.OK);
-                toolStripStatusLabel1.Text = "Failed to open document after " +
+                toolStripStatusLabel1.Text = "Failed to open" + WordFile + " after " +
                     ((float)theStopWatch.ElapsedTicks / Stopwatch.Frequency).ToString("f2") + " seconds";
                 theStopWatch.Stop();
                 theStopWatch = null;
@@ -1989,7 +2271,7 @@ namespace CharacterCounter
                         TheResult = MessageBox.Show("Failed to open " + WordFile + "\r" + ex.Message + "\r" + ex.StackTrace, "File open failure", MessageBoxButtons.RetryCancel, MessageBoxIcon.Error);
                     }
                 }
-               if (theXMLDocument != null)
+                if (theXMLDocument != null)
                 {
                     nsManager = new XmlNamespaceManager(theXMLDocument.NameTable);
                     nsManager.AddNamespace("wx", wordmlxNamespace);
@@ -2035,7 +2317,7 @@ namespace CharacterCounter
                         TheResult = MessageBox.Show("Failed to open " + TextFile + "\r" + ex.Message + "\r" + ex.StackTrace, "File open failure", MessageBoxButtons.RetryCancel, MessageBoxIcon.Error);
                     }
                 }
-                
+
                 if (theFile != null)
                 {
                     // If successful add the root to the dictionary
@@ -2146,7 +2428,7 @@ namespace CharacterCounter
 
                 if (theGlyphDictionary.Keys.Contains(FontName))
                 {
-                    theGlyphDictionary[FontName] +=  theChar;
+                    theGlyphDictionary[FontName] += theChar;
                 }
                 else
                 {
@@ -2166,6 +2448,63 @@ namespace CharacterCounter
             // I.e. we match any character followed by a combining character.
             Registry.SetValue(keyName, "AggregateDir", AggregateDir);
             return true;
+        }
+        private bool LoadTargets(List<TargetDescriptor> TargetList, ExcelApp theApp)
+        {
+            DialogResult Retrying = DialogResult.Retry;
+            int theRow = 2;
+            ExcelRoot.Workbook theWorkbook = null;
+            TargetList.Clear(); // Make sure it is empty
+            bool result = true;
+            toolStripStatusLabel1.Text = "Loading context targets from " + ContextCharacterFileBox.Text + "...";
+            while (Retrying == DialogResult.Retry)
+            {
+                try
+                {
+                    theWorkbook = theApp.Workbooks.Open(ContextCharacterFileBox.Text, missing, true);
+                    Retrying = DialogResult.OK;
+                }
+                catch (Exception Ex)
+                {
+                    Retrying = MessageBox.Show(Ex.Message + "\r" + Ex.StackTrace, "Error opening glyph file", MessageBoxButtons.RetryCancel);
+                    if (Retrying == DialogResult.Cancel)
+                    {
+                        return false;
+                    }
+                }
+            }
+            //
+            //  We have opened the Excel file, so read it
+            //
+            string theTarget = theWorkbook.ActiveSheet.Cells[theRow, 1].Value;
+            while (theTarget != null && result)
+            {
+                try
+                {
+                   TargetDescriptor newTarget = new TargetDescriptor(theTarget, theWorkbook.ActiveSheet.Cells[theRow, 2].Value,
+                        theWorkbook.ActiveSheet.Cells[theRow, 3].Value);
+                    if (newTarget.Valid)
+                    {
+                        TargetList.Add(newTarget);
+                    }
+                    else
+                    {
+                        result = false;  // We have failed
+                        break;
+                    }
+                    string Regex = newTarget.GetRegEx();
+                    theRow++;
+                    theTarget = theWorkbook.ActiveSheet.Cells[theRow, 1].Value;
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(ex.Message, "Failure", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    result = false;
+                }
+            }
+            theWorkbook.Close(false); // Close the workbook, we don't need it again.
+            toolStripStatusLabel1.Text = "Finished loading context targets from " + ContextCharacterFileBox.Text;
+            return result;
         }
 
         private void DecompGlyphBox_TextChanged(object sender, EventArgs e)
@@ -2267,15 +2606,17 @@ namespace CharacterCounter
             }
             if (AggregateStats.Checked && !AggregateSaved)
             {
-                AggregateSaved = WriteOutput(theAggregateDictionary, "", AggregateDir, AggregateStatsBox.Text, AggregateFileList, theAggregateSummaryDictionary);
+                AggregateSaved = WriteOutput(theAggregateDictionary, theAggregateContextDictionary, "", AggregateDir, AggregateStatsBox.Text, AggregateFileList, 
+                    theAggregateSummaryDictionary, theAggregateContextSummaryDictionary);
             }
 
         }
 
         private void btnSaveAggregateStats_Click(object sender, EventArgs e)
         {
-            AggregateSaved = WriteOutput(theAggregateDictionary, "", AggregateDir, AggregateStatsBox.Text, AggregateFileList, theAggregateSummaryDictionary);
-            btnSaveAggregateStats.Enabled = !AggregateSaved  && AggregateStatsBox.Text != "" && FileCounter.Text != "0";
+            AggregateSaved = WriteOutput(theAggregateDictionary, theAggregateContextDictionary, "", AggregateDir, AggregateStatsBox.Text, AggregateFileList, 
+                theAggregateSummaryDictionary, theAggregateContextSummaryDictionary);
+            btnSaveAggregateStats.Enabled = !AggregateSaved && AggregateStatsBox.Text != "" && FileCounter.Text != "0";
             System.Media.SystemSounds.Beep.Play();  // and beep
         }
 
@@ -2293,9 +2634,9 @@ namespace CharacterCounter
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error opening file " + HelpPath + "\r" + ex.Message, "Error", MessageBoxButtons.OK );
+                MessageBox.Show("Error opening file " + HelpPath + "\r" + ex.Message, "Error", MessageBoxButtons.OK);
             }
- 
+
 
         }
 
@@ -2455,9 +2796,36 @@ namespace CharacterCounter
 
         }
 
+        private void ContextCharacterFileBox_TextChanged(object sender, EventArgs e)
+        {
+            TextBox theBox = (TextBox)sender;
+            if (theBox.Text != "")
+            {
+                if (File.Exists(theBox.Text))
+                {
+                    btnCheckContextFile.Enabled = true;
+                    AnalyseContext = true;
+                }
+                else
+                {
+                    MessageBox.Show(theBox.Text + " not found", "File not found", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    btnCheckContextFile.Enabled = false;
+                    AnalyseContext = false;
+                }
 
+            }
+            else
+            {
+                AnalyseContext = false;
+            }
 
+        }
 
+        private void btnCheckContextFile_Click(object sender, EventArgs e)
+        {
+            // Check the validity fo the list of targets.
+            AnalyseContext = LoadTargets(TargetList, excelApp);
+        }
     }
     class CharacterDescriptor
     {
@@ -2498,6 +2866,51 @@ namespace CharacterCounter
             this.Text = null;
         }
     }
+    class ContextDescriptor
+    {
+        public string FileName;
+        public string Font;
+        public string Target;
+        public string Context;
+
+        // Constructor
+        public ContextDescriptor(string FileName, string FontName, string Target, string Context)
+        {
+            this.FileName = FileName;
+            this.Font = FontName;
+            this.Target = Target;
+            this.Context = Context;
+        }
+        public ContextDescriptor(string FontName, string Target, string Context)
+        {
+            this.FileName = null;
+            this.Font = FontName;
+            this.Target = Target;
+            this.Context = Context;
+        }
+
+        public ContextDescriptor(string Target, string Context)
+        {
+            this.FileName = null;
+            this.Font = null;
+            this.Target = Target;
+            this.Context = Context;
+        }
+        public ContextDescriptor(ContextDescriptor theContextDescriptor)
+        {
+            this.FileName = theContextDescriptor.FileName;
+            this.Font = theContextDescriptor.Font;
+            this.Target = theContextDescriptor.Target;
+            this.Context = theContextDescriptor.Context;
+        }
+        public ContextDescriptor()
+        {
+            this.FileName = null;
+            this.Font = null;
+            this.Target = null;
+            this.Context = null;
+        }
+    }
     class CharacterEqualityComparer : EqualityComparer<CharacterDescriptor>
     {
         override public bool Equals(CharacterDescriptor key1, CharacterDescriptor key2)
@@ -2519,6 +2932,27 @@ namespace CharacterCounter
             return HashCode;
         }
     }
+    class ContextEqualityComparer : EqualityComparer<ContextDescriptor>
+    {
+        override public bool Equals(ContextDescriptor key1, ContextDescriptor key2)
+        {
+            bool isEqual = (key1.FileName == key2.FileName) & (key1.Font == key2.Font) & (key1.Target == key2.Target) & (key1.Context == key2.Context);
+            return isEqual;
+        }
+        override public int GetHashCode(ContextDescriptor key)
+        {
+            int HashCode = 0;
+            if (key.Font == "")
+            {
+                HashCode = (key.FileName + "\r" + key.Target + "\r" + key.Context).GetHashCode();
+            }
+            else
+            {
+                HashCode = (key.FileName + "\r" + key.Target + "\r" + key.Context + "\r" + key.Font).GetHashCode();
+            }
+            return HashCode;
+        }
+    }
     class Style
     {
         public string Name;
@@ -2527,15 +2961,15 @@ namespace CharacterCounter
         // Constructor
         public Style(string Name, string Font)
         {
-             this.Font = Font;
-             this.Name = Name;
+            this.Font = Font;
+            this.Name = Name;
         }
         public Style(Style theStyle)
         {
             this.Font = theStyle.Font;
             this.Name = theStyle.Name;
         }
- 
+
     }
     class StyleComparer : EqualityComparer<Style>
     {
@@ -2558,7 +2992,119 @@ namespace CharacterCounter
             return HashCode;
         }
     }
+    class TargetDescriptor
+    {
+        public string Target;
+        public bool Valid;
+        public int CharactersBefore;
+        public int CharactersAfter;
 
+        public TargetDescriptor()
+        {
+            this.Target = null;
+            this.CharactersBefore = 0;
+            this.CharactersAfter = 0;
+            this.Valid = false;
+        }
+        public TargetDescriptor(string Target, object CharactersBefore, object CharactersAfter)
+        {
+            this.Valid = true; // Assume success
+            this.Target = this.GetTarget(Target, ref this.Valid);
+            this.CharactersAfter = GetInteger(CharactersAfter, ref this.Valid);
+            this.CharactersBefore = GetInteger(CharactersBefore, ref this.Valid);
+            this.Valid = (this.Target != null);
+        }
+        public string GetTarget(string Targets, ref bool valid)
+        {
+            const string pattern = "U\\+(([0-9]|[A-F]){4})"; // Match U+xxxx where xxxx is a four digit hex number
+            string hexnumber = "";
+
+            string[] TargetArray = Regex.Split(Targets.ToUpper().Trim(), " "); // We also make sure it is in upper case
+
+            char[] theCharacter = new char[1]; // a single valued array
+            string result = "";
+            foreach (string Target in TargetArray)
+            {
+                if (Regex.IsMatch(Target, pattern))
+                {
+                    hexnumber = Regex.Replace(Target, pattern, "$1");
+                    theCharacter[0] = (char)int.Parse(hexnumber, NumberStyles.HexNumber);
+                    result += new string(theCharacter);
+                    valid = true && valid;
+                }
+                else
+                {
+                    MessageBox.Show(Target + " is not a valid Unicode value", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    valid = false;
+                }
+            }
+            return result;
+        }
+        private int GetInteger( object TheValue, ref bool valid)
+        {
+            int result = -1;
+            valid = false; // assume failure
+            if (TheValue == null)
+            {
+                MessageBox.Show("Null value found - check spreadsheet", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return result;
+            }
+            try
+            {
+                if (TheValue.GetType() == typeof(double))
+                {
+                    result = (int)(double)TheValue;
+                    valid = true;
+                }
+                else
+                {
+                    MessageBox.Show(TheValue + " is not a valid number", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    valid = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                valid = false;
+            }
+
+            return result;
+        }
+        public string GetRegEx(string theTarget, int CharactersBefore, int CharactersAfter)
+        {
+            // Build the regular expression to search for context
+            string result = String.Format(".{{0,{0}}}{1}.{{0,{2}}}", CharactersBefore, GetHex(theTarget, "\\u"), CharactersAfter);
+            return result;
+
+        }
+        public string GetRegEx(TargetDescriptor theTarget)
+        {
+            return GetRegEx(theTarget.Target, theTarget.CharactersBefore, theTarget.CharactersAfter);
+        }
+        public string GetRegEx()
+        {
+            return GetRegEx(this);
+        }
+        public string GetHex(string theString, string prefix="", string suffix = "")
+        {
+            // Get the hexadecimal strings for the characters in a string
+            // and return the resultant string
+            char[] theCharacters = theString.ToCharArray();
+            int theCounter = 0;
+            string output = "";
+            foreach (char theCharacter in theCharacters)
+            {
+                int value = Convert.ToInt32(theCharacter);
+                output += prefix + value.ToString("X4");
+                if (theCounter < theCharacters.Length)
+                {
+                    output += suffix;
+                }
+            }
+            return output;
+        }
+
+    }
 }
 
 

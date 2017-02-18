@@ -41,6 +41,10 @@
             this.toolStripStatusLabel1 = new System.Windows.Forms.ToolStripStatusLabel();
             this.toolStripProgressBar1 = new System.Windows.Forms.ToolStripProgressBar();
             this.toolStripContainer1 = new System.Windows.Forms.ToolStripContainer();
+            this.btnCheckContextFile = new System.Windows.Forms.Button();
+            this.btnContextCharFile = new System.Windows.Forms.Button();
+            this.ContextCharacterFileBox = new System.Windows.Forms.TextBox();
+            this.label20 = new System.Windows.Forms.Label();
             this.btnAggregateFile = new System.Windows.Forms.Button();
             this.AggregateStatsBox = new System.Windows.Forms.TextBox();
             this.label13 = new System.Windows.Forms.Label();
@@ -132,7 +136,7 @@
             this.OpenGlyphFileDialogue = new System.Windows.Forms.OpenFileDialog();
             this.fontDialog1 = new System.Windows.Forms.FontDialog();
             this.FolderDialogue = new System.Windows.Forms.FolderBrowserDialog();
-            this.openFileDialog1 = new System.Windows.Forms.OpenFileDialog();
+            this.openContextCharFileDialogue = new System.Windows.Forms.OpenFileDialog();
             this.statusStrip1.SuspendLayout();
             this.toolStripContainer1.ContentPanel.SuspendLayout();
             this.toolStripContainer1.SuspendLayout();
@@ -196,7 +200,7 @@
             // 
             // btnClose
             // 
-            this.btnClose.Location = new System.Drawing.Point(631, 618);
+            this.btnClose.Location = new System.Drawing.Point(631, 649);
             this.btnClose.Name = "btnClose";
             this.btnClose.Size = new System.Drawing.Size(101, 30);
             this.btnClose.TabIndex = 7;
@@ -225,7 +229,7 @@
             this.statusStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.toolStripStatusLabel1,
             this.toolStripProgressBar1});
-            this.statusStrip1.Location = new System.Drawing.Point(4, 640);
+            this.statusStrip1.Location = new System.Drawing.Point(4, 671);
             this.statusStrip1.Name = "statusStrip1";
             this.statusStrip1.Size = new System.Drawing.Size(219, 22);
             this.statusStrip1.TabIndex = 9;
@@ -247,6 +251,10 @@
             // toolStripContainer1.ContentPanel
             // 
             this.toolStripContainer1.ContentPanel.AutoScroll = true;
+            this.toolStripContainer1.ContentPanel.Controls.Add(this.btnCheckContextFile);
+            this.toolStripContainer1.ContentPanel.Controls.Add(this.btnContextCharFile);
+            this.toolStripContainer1.ContentPanel.Controls.Add(this.ContextCharacterFileBox);
+            this.toolStripContainer1.ContentPanel.Controls.Add(this.label20);
             this.toolStripContainer1.ContentPanel.Controls.Add(this.btnAggregateFile);
             this.toolStripContainer1.ContentPanel.Controls.Add(this.AggregateStatsBox);
             this.toolStripContainer1.ContentPanel.Controls.Add(this.label13);
@@ -274,20 +282,58 @@
             this.toolStripContainer1.ContentPanel.Controls.Add(this.menuStrip1);
             this.toolStripContainer1.ContentPanel.Controls.Add(this.label1);
             this.toolStripContainer1.ContentPanel.Controls.Add(this.IndivOrBulk);
-            this.toolStripContainer1.ContentPanel.Size = new System.Drawing.Size(767, 662);
+            this.toolStripContainer1.ContentPanel.Size = new System.Drawing.Size(767, 724);
             this.toolStripContainer1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.toolStripContainer1.LeftToolStripPanelVisible = false;
             this.toolStripContainer1.Location = new System.Drawing.Point(0, 0);
             this.toolStripContainer1.Name = "toolStripContainer1";
             this.toolStripContainer1.RightToolStripPanelVisible = false;
-            this.toolStripContainer1.Size = new System.Drawing.Size(767, 662);
+            this.toolStripContainer1.Size = new System.Drawing.Size(767, 724);
             this.toolStripContainer1.TabIndex = 10;
             this.toolStripContainer1.Text = "toolStripContainer1";
             this.toolStripContainer1.TopToolStripPanelVisible = false;
             // 
+            // btnCheckContextFile
+            // 
+            this.btnCheckContextFile.Enabled = false;
+            this.btnCheckContextFile.Location = new System.Drawing.Point(641, 538);
+            this.btnCheckContextFile.Name = "btnCheckContextFile";
+            this.btnCheckContextFile.Size = new System.Drawing.Size(97, 24);
+            this.btnCheckContextFile.TabIndex = 76;
+            this.btnCheckContextFile.Text = "Check";
+            this.btnCheckContextFile.UseVisualStyleBackColor = true;
+            this.btnCheckContextFile.Click += new System.EventHandler(this.btnCheckContextFile_Click);
+            // 
+            // btnContextCharFile
+            // 
+            this.btnContextCharFile.Location = new System.Drawing.Point(557, 540);
+            this.btnContextCharFile.Name = "btnContextCharFile";
+            this.btnContextCharFile.Size = new System.Drawing.Size(75, 23);
+            this.btnContextCharFile.TabIndex = 57;
+            this.btnContextCharFile.Text = "Browse";
+            this.btnContextCharFile.UseVisualStyleBackColor = true;
+            this.btnContextCharFile.Click += new System.EventHandler(this.btnGetInput_Click);
+            // 
+            // ContextCharacterFileBox
+            // 
+            this.ContextCharacterFileBox.Location = new System.Drawing.Point(137, 541);
+            this.ContextCharacterFileBox.Name = "ContextCharacterFileBox";
+            this.ContextCharacterFileBox.Size = new System.Drawing.Size(408, 20);
+            this.ContextCharacterFileBox.TabIndex = 56;
+            this.ContextCharacterFileBox.TextChanged += new System.EventHandler(this.ContextCharacterFileBox_TextChanged);
+            // 
+            // label20
+            // 
+            this.label20.AutoSize = true;
+            this.label20.Location = new System.Drawing.Point(17, 545);
+            this.label20.Name = "label20";
+            this.label20.Size = new System.Drawing.Size(122, 13);
+            this.label20.TabIndex = 75;
+            this.label20.Text = "Context character list file";
+            // 
             // btnAggregateFile
             // 
-            this.btnAggregateFile.Location = new System.Drawing.Point(554, 567);
+            this.btnAggregateFile.Location = new System.Drawing.Point(557, 598);
             this.btnAggregateFile.Name = "btnAggregateFile";
             this.btnAggregateFile.Size = new System.Drawing.Size(75, 23);
             this.btnAggregateFile.TabIndex = 64;
@@ -297,7 +343,7 @@
             // 
             // AggregateStatsBox
             // 
-            this.AggregateStatsBox.Location = new System.Drawing.Point(138, 568);
+            this.AggregateStatsBox.Location = new System.Drawing.Point(137, 599);
             this.AggregateStatsBox.Name = "AggregateStatsBox";
             this.AggregateStatsBox.Size = new System.Drawing.Size(408, 20);
             this.AggregateStatsBox.TabIndex = 63;
@@ -307,7 +353,7 @@
             // label13
             // 
             this.label13.AutoSize = true;
-            this.label13.Location = new System.Drawing.Point(11, 572);
+            this.label13.Location = new System.Drawing.Point(17, 603);
             this.label13.Name = "label13";
             this.label13.Size = new System.Drawing.Size(97, 13);
             this.label13.TabIndex = 62;
@@ -528,7 +574,7 @@
             // btnGetEncoding
             // 
             this.btnGetEncoding.Enabled = false;
-            this.btnGetEncoding.Location = new System.Drawing.Point(16, 537);
+            this.btnGetEncoding.Location = new System.Drawing.Point(17, 568);
             this.btnGetEncoding.Name = "btnGetEncoding";
             this.btnGetEncoding.Size = new System.Drawing.Size(75, 23);
             this.btnGetEncoding.TabIndex = 59;
@@ -539,7 +585,7 @@
             // EncodingTextBox
             // 
             this.EncodingTextBox.Enabled = false;
-            this.EncodingTextBox.Location = new System.Drawing.Point(138, 538);
+            this.EncodingTextBox.Location = new System.Drawing.Point(137, 569);
             this.EncodingTextBox.Name = "EncodingTextBox";
             this.EncodingTextBox.Size = new System.Drawing.Size(180, 20);
             this.EncodingTextBox.TabIndex = 60;
@@ -547,7 +593,7 @@
             // btnGetFont
             // 
             this.btnGetFont.Enabled = false;
-            this.btnGetFont.Location = new System.Drawing.Point(556, 537);
+            this.btnGetFont.Location = new System.Drawing.Point(557, 568);
             this.btnGetFont.Name = "btnGetFont";
             this.btnGetFont.Size = new System.Drawing.Size(75, 23);
             this.btnGetFont.TabIndex = 58;
@@ -560,7 +606,7 @@
             // FontBox
             // 
             this.FontBox.Enabled = false;
-            this.FontBox.Location = new System.Drawing.Point(361, 538);
+            this.FontBox.Location = new System.Drawing.Point(361, 569);
             this.FontBox.Name = "FontBox";
             this.FontBox.Size = new System.Drawing.Size(184, 20);
             this.FontBox.TabIndex = 57;
@@ -570,7 +616,7 @@
             // 
             this.FontLabel.AutoSize = true;
             this.FontLabel.Enabled = false;
-            this.FontLabel.Location = new System.Drawing.Point(328, 542);
+            this.FontLabel.Location = new System.Drawing.Point(328, 573);
             this.FontLabel.Name = "FontLabel";
             this.FontLabel.Size = new System.Drawing.Size(28, 13);
             this.FontLabel.TabIndex = 56;
@@ -611,7 +657,7 @@
             this.WriteIndividualFile.CheckAlign = System.Drawing.ContentAlignment.MiddleRight;
             this.WriteIndividualFile.Checked = true;
             this.WriteIndividualFile.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.WriteIndividualFile.Location = new System.Drawing.Point(127, 596);
+            this.WriteIndividualFile.Location = new System.Drawing.Point(127, 627);
             this.WriteIndividualFile.Name = "WriteIndividualFile";
             this.WriteIndividualFile.Size = new System.Drawing.Size(114, 17);
             this.WriteIndividualFile.TabIndex = 51;
@@ -621,7 +667,7 @@
             // btnSaveAggregateStats
             // 
             this.btnSaveAggregateStats.Enabled = false;
-            this.btnSaveAggregateStats.Location = new System.Drawing.Point(631, 564);
+            this.btnSaveAggregateStats.Location = new System.Drawing.Point(631, 595);
             this.btnSaveAggregateStats.Name = "btnSaveAggregateStats";
             this.btnSaveAggregateStats.Size = new System.Drawing.Size(101, 26);
             this.btnSaveAggregateStats.TabIndex = 50;
@@ -633,7 +679,7 @@
             // label14
             // 
             this.label14.AutoSize = true;
-            this.label14.Location = new System.Drawing.Point(259, 619);
+            this.label14.Location = new System.Drawing.Point(259, 650);
             this.label14.Name = "label14";
             this.label14.Size = new System.Drawing.Size(70, 13);
             this.label14.TabIndex = 49;
@@ -642,7 +688,7 @@
             // FileCounter
             // 
             this.FileCounter.AutoSize = true;
-            this.FileCounter.Location = new System.Drawing.Point(335, 619);
+            this.FileCounter.Location = new System.Drawing.Point(335, 650);
             this.FileCounter.Name = "FileCounter";
             this.FileCounter.Size = new System.Drawing.Size(13, 13);
             this.FileCounter.TabIndex = 48;
@@ -653,7 +699,7 @@
             this.AggregateStats.AutoSize = true;
             this.AggregateStats.CheckAlign = System.Drawing.ContentAlignment.MiddleRight;
             this.AggregateStats.Enabled = false;
-            this.AggregateStats.Location = new System.Drawing.Point(127, 617);
+            this.AggregateStats.Location = new System.Drawing.Point(127, 648);
             this.AggregateStats.Name = "AggregateStats";
             this.AggregateStats.Size = new System.Drawing.Size(121, 17);
             this.AggregateStats.TabIndex = 44;
@@ -677,7 +723,7 @@
             this.CombDecomposedChars.Checked = true;
             this.CombDecomposedChars.CheckState = System.Windows.Forms.CheckState.Checked;
             this.CombDecomposedChars.Cursor = System.Windows.Forms.Cursors.Default;
-            this.CombDecomposedChars.Location = new System.Drawing.Point(402, 596);
+            this.CombDecomposedChars.Location = new System.Drawing.Point(402, 627);
             this.CombDecomposedChars.Name = "CombDecomposedChars";
             this.CombDecomposedChars.Size = new System.Drawing.Size(184, 17);
             this.CombDecomposedChars.TabIndex = 29;
@@ -694,7 +740,7 @@
             this.AnalyseByFont.CheckAlign = System.Drawing.ContentAlignment.MiddleRight;
             this.AnalyseByFont.Checked = true;
             this.AnalyseByFont.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.AnalyseByFont.Location = new System.Drawing.Point(262, 595);
+            this.AnalyseByFont.Location = new System.Drawing.Point(262, 626);
             this.AnalyseByFont.Name = "AnalyseByFont";
             this.AnalyseByFont.Size = new System.Drawing.Size(101, 17);
             this.AnalyseByFont.TabIndex = 14;
@@ -1021,7 +1067,7 @@
             // label15
             // 
             this.label15.AutoSize = true;
-            this.label15.Location = new System.Drawing.Point(23, 16);
+            this.label15.Location = new System.Drawing.Point(14, 16);
             this.label15.Name = "label15";
             this.label15.Size = new System.Drawing.Size(60, 13);
             this.label15.TabIndex = 58;
@@ -1048,7 +1094,7 @@
             // label16
             // 
             this.label16.AutoSize = true;
-            this.label16.Location = new System.Drawing.Point(23, 45);
+            this.label16.Location = new System.Drawing.Point(14, 45);
             this.label16.Name = "label16";
             this.label16.Size = new System.Drawing.Size(107, 13);
             this.label16.TabIndex = 46;
@@ -1057,7 +1103,7 @@
             // label17
             // 
             this.label17.AutoSize = true;
-            this.label17.Location = new System.Drawing.Point(23, 66);
+            this.label17.Location = new System.Drawing.Point(14, 75);
             this.label17.Name = "label17";
             this.label17.Size = new System.Drawing.Size(59, 13);
             this.label17.TabIndex = 49;
@@ -1066,7 +1112,7 @@
             // label18
             // 
             this.label18.AutoSize = true;
-            this.label18.Location = new System.Drawing.Point(23, 101);
+            this.label18.Location = new System.Drawing.Point(14, 110);
             this.label18.Name = "label18";
             this.label18.Size = new System.Drawing.Size(61, 13);
             this.label18.TabIndex = 52;
@@ -1075,7 +1121,7 @@
             // label19
             // 
             this.label19.AutoSize = true;
-            this.label19.Location = new System.Drawing.Point(23, 127);
+            this.label19.Location = new System.Drawing.Point(14, 146);
             this.label19.Name = "label19";
             this.label19.Size = new System.Drawing.Size(60, 13);
             this.label19.TabIndex = 59;
@@ -1100,21 +1146,21 @@
             // 
             // BulkFontListFileBox
             // 
-            this.BulkFontListFileBox.Location = new System.Drawing.Point(135, 67);
+            this.BulkFontListFileBox.Location = new System.Drawing.Point(135, 76);
             this.BulkFontListFileBox.Name = "BulkFontListFileBox";
             this.BulkFontListFileBox.Size = new System.Drawing.Size(408, 20);
             this.BulkFontListFileBox.TabIndex = 50;
             // 
             // BulkStyleListBox
             // 
-            this.BulkStyleListBox.Location = new System.Drawing.Point(134, 94);
+            this.BulkStyleListBox.Location = new System.Drawing.Point(134, 103);
             this.BulkStyleListBox.Name = "BulkStyleListBox";
             this.BulkStyleListBox.Size = new System.Drawing.Size(408, 20);
             this.BulkStyleListBox.TabIndex = 53;
             // 
             // btnBulkErrorList
             // 
-            this.btnBulkErrorList.Location = new System.Drawing.Point(549, 122);
+            this.btnBulkErrorList.Location = new System.Drawing.Point(549, 141);
             this.btnBulkErrorList.Name = "btnBulkErrorList";
             this.btnBulkErrorList.Size = new System.Drawing.Size(75, 23);
             this.btnBulkErrorList.TabIndex = 61;
@@ -1124,7 +1170,7 @@
             // 
             // BulkErrorListBox
             // 
-            this.BulkErrorListBox.Location = new System.Drawing.Point(134, 121);
+            this.BulkErrorListBox.Location = new System.Drawing.Point(134, 140);
             this.BulkErrorListBox.Name = "BulkErrorListBox";
             this.BulkErrorListBox.Size = new System.Drawing.Size(408, 20);
             this.BulkErrorListBox.TabIndex = 60;
@@ -1132,7 +1178,7 @@
             // 
             // btnBulkFontListFile
             // 
-            this.btnBulkFontListFile.Location = new System.Drawing.Point(549, 66);
+            this.btnBulkFontListFile.Location = new System.Drawing.Point(549, 75);
             this.btnBulkFontListFile.Name = "btnBulkFontListFile";
             this.btnBulkFontListFile.Size = new System.Drawing.Size(75, 23);
             this.btnBulkFontListFile.TabIndex = 51;
@@ -1142,7 +1188,7 @@
             // 
             // btnBulkStyleListFile
             // 
-            this.btnBulkStyleListFile.Location = new System.Drawing.Point(549, 93);
+            this.btnBulkStyleListFile.Location = new System.Drawing.Point(549, 102);
             this.btnBulkStyleListFile.Name = "btnBulkStyleListFile";
             this.btnBulkStyleListFile.Size = new System.Drawing.Size(75, 23);
             this.btnBulkStyleListFile.TabIndex = 54;
@@ -1157,13 +1203,13 @@
             // 
             this.toolStripContainer2.ContentPanel.AutoScroll = true;
             this.toolStripContainer2.ContentPanel.Controls.Add(this.toolStripContainer1);
-            this.toolStripContainer2.ContentPanel.Size = new System.Drawing.Size(767, 662);
+            this.toolStripContainer2.ContentPanel.Size = new System.Drawing.Size(767, 724);
             this.toolStripContainer2.Dock = System.Windows.Forms.DockStyle.Fill;
             this.toolStripContainer2.LeftToolStripPanelVisible = false;
             this.toolStripContainer2.Location = new System.Drawing.Point(0, 0);
             this.toolStripContainer2.Name = "toolStripContainer2";
             this.toolStripContainer2.RightToolStripPanelVisible = false;
-            this.toolStripContainer2.Size = new System.Drawing.Size(767, 662);
+            this.toolStripContainer2.Size = new System.Drawing.Size(767, 724);
             this.toolStripContainer2.TabIndex = 11;
             this.toolStripContainer2.Text = "toolStripContainer2";
             this.toolStripContainer2.TopToolStripPanelVisible = false;
@@ -1199,15 +1245,17 @@
             this.FolderDialogue.RootFolder = System.Environment.SpecialFolder.MyComputer;
             this.FolderDialogue.ShowNewFolderButton = false;
             // 
-            // openFileDialog1
+            // openContextCharFileDialogue
             // 
-            this.openFileDialog1.FileName = "openFileDialog1";
+            this.openContextCharFileDialogue.DefaultExt = "xlsx";
+            this.openContextCharFileDialogue.Filter = "Excel Files | *.xlsx|Excel Macro Enabled Files |*.xlsm";
+            this.openContextCharFileDialogue.Title = "Context Character File";
             // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(767, 662);
+            this.ClientSize = new System.Drawing.Size(767, 724);
             this.Controls.Add(this.toolStripContainer2);
             this.MainMenuStrip = this.menuStrip1;
             this.Name = "Form1";
@@ -1348,7 +1396,11 @@
         private System.Windows.Forms.Label label13;
         private System.Windows.Forms.Button btnSelectFiles;
         private System.Windows.Forms.FolderBrowserDialog FolderDialogue;
-        private System.Windows.Forms.OpenFileDialog openFileDialog1;
+        private System.Windows.Forms.OpenFileDialog openContextCharFileDialogue;
+        private System.Windows.Forms.Button btnContextCharFile;
+        private System.Windows.Forms.TextBox ContextCharacterFileBox;
+        private System.Windows.Forms.Label label20;
+        private System.Windows.Forms.Button btnCheckContextFile;
     }
 }
 
