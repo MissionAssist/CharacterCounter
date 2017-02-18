@@ -7,7 +7,7 @@
  *  
  *  The copyright is owned by MissionAssist as the work was carried out on their behalf.
  * 
- *  Written by Stephen Palmstrom, last modified 6 February 2017
+ *  Written by Stephen Palmstrom, last modified 18 February 2017
  *  
  */
 using System;
@@ -2466,7 +2466,7 @@ namespace CharacterCounter
                 }
                 catch (Exception Ex)
                 {
-                    Retrying = MessageBox.Show(Ex.Message + "\r" + Ex.StackTrace, "Error opening glyph file", MessageBoxButtons.RetryCancel);
+                    Retrying = MessageBox.Show(Ex.Message + "\r" + Ex.StackTrace, "Error opening context file", MessageBoxButtons.RetryCancel);
                     if (Retrying == DialogResult.Cancel)
                     {
                         return false;
@@ -2503,7 +2503,7 @@ namespace CharacterCounter
                 }
             }
             theWorkbook.Close(false); // Close the workbook, we don't need it again.
-            toolStripStatusLabel1.Text = "Finished loading context targets from " + ContextCharacterFileBox.Text;
+            toolStripStatusLabel1.Text = "Finished loading context targets from " + Path.GetFileName(ContextCharacterFileBox.Text);
             return result;
         }
 
