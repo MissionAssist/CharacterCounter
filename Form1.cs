@@ -463,16 +463,16 @@ namespace CharacterCounter
 
 
                 excelApp.Quit();
-                NAR(excelApp);  // release any objects like workbooks because Excel doesn't always quit.
+                //NAR(excelApp);  // release any objects like workbooks because Excel doesn't always quit.
                 System.Threading.Thread.Sleep(5000); // and sleep five seconds
                 excelApp.Quit(); // try again
                 excelApp = null;
-
+                this.Close();
             }
             catch
             {
             }
-            this.Close();
+
 
         }
         private void NAR(object o)
@@ -480,11 +480,15 @@ namespace CharacterCounter
             try
             {
                 while (System.Runtime.InteropServices.Marshal.ReleaseComObject(o) > 0) ;
+                o = null;
             }
-            catch { }
+            catch
+            {
+                o = null;
+            }
             finally
             {
-                o = null;  // clear the object
+                GC.Collect();  // clear up
             }
         }
 
@@ -669,7 +673,8 @@ namespace CharacterCounter
                 try
                 {
                     theWorkbook.LockServerFile();  // enable editing opened from the network.
-                } catch
+                }
+                catch
                 {
                     // do nothing on failure
                 };
@@ -778,7 +783,8 @@ namespace CharacterCounter
             if (FileExists)
             {
                 theWorkbook.Save();
-            } else
+            }
+            else
             {
                 theWorkbook.SaveAs(OutputFile);
             }
@@ -2526,53 +2532,57 @@ namespace CharacterCounter
             ExcelRoot.Workbook theWorkbook = null;
             TargetDictionary.Clear(); // Make sure it is empty
             bool result = true;
-            toolStripStatusLabel1.Text = "Loading context targets from " + ContextCharacterFileBox.Text + "...";
-            while (Retrying == DialogResult.Retry)
+            if (File.Exists(ContextCharacterFileBox.Text))
             {
-                try
+                toolStripStatusLabel1.Text = "Loading context targets from " + ContextCharacterFileBox.Text + "...";
+                while (Retrying == DialogResult.Retry)
                 {
-                    theWorkbook = theApp.Workbooks.Open(ContextCharacterFileBox.Text, missing, true);
-                    Retrying = DialogResult.OK;
-                }
-                catch (Exception Ex)
-                {
-                    Retrying = MessageBox.Show(Ex.Message + "\r" + Ex.StackTrace, "Error opening context file", MessageBoxButtons.RetryCancel);
-                    if (Retrying == DialogResult.Cancel)
+                    try
                     {
-                        return false;
+                        theWorkbook = theApp.Workbooks.Open(ContextCharacterFileBox.Text, missing, true);
+                        Retrying = DialogResult.OK;
+                    }
+                    catch (Exception Ex)
+                    {
+                        Retrying = MessageBox.Show(Ex.Message + "\r" + Ex.StackTrace, "Error opening context file", MessageBoxButtons.RetryCancel);
+                        if (Retrying == DialogResult.Cancel)
+                        {
+                            return false;
+                        }
                     }
                 }
+                //
+                //  We have opened the Excel file, so read it
+                //
+                string theTarget = theWorkbook.ActiveSheet.Cells[theRow, 1].Value;
+                while (theTarget != null && result)
+                {
+                    try
+                    {
+                        TargetDescriptor newTarget = new TargetDescriptor(theTarget, theWorkbook.ActiveSheet.Cells[theRow, 2].Value,
+                             theWorkbook.ActiveSheet.Cells[theRow, 3].Value);
+                        if (newTarget.Valid)
+                        {
+                            newTarget.UpdateDictionary(TargetDictionary, newTarget); // update the dictionary
+                        }
+                        else
+                        {
+                            result = false;  // We have failed
+                            break;
+                        }
+                        string Regex = newTarget.GetRegEx();
+                        theRow++;
+                        theTarget = theWorkbook.ActiveSheet.Cells[theRow, 1].Value;
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show(ex.Message, "Failure", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        result = false;
+                    }
+                }
+                theWorkbook.Close(false); // Close the workbook, we don't need it again.
+
             }
-            //
-            //  We have opened the Excel file, so read it
-            //
-            string theTarget = theWorkbook.ActiveSheet.Cells[theRow, 1].Value;
-            while (theTarget != null && result)
-            {
-                try
-                {
-                    TargetDescriptor newTarget = new TargetDescriptor(theTarget, theWorkbook.ActiveSheet.Cells[theRow, 2].Value,
-                         theWorkbook.ActiveSheet.Cells[theRow, 3].Value);
-                    if (newTarget.Valid)
-                    {
-                        newTarget.UpdateDictionary(TargetDictionary, newTarget); // update the dictionary
-                    }
-                    else
-                    {
-                        result = false;  // We have failed
-                        break;
-                    }
-                    string Regex = newTarget.GetRegEx();
-                    theRow++;
-                    theTarget = theWorkbook.ActiveSheet.Cells[theRow, 1].Value;
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show(ex.Message, "Failure", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    result = false;
-                }
-            }
-            theWorkbook.Close(false); // Close the workbook, we don't need it again.
             if (boxContextChars.Text != "")
             {
                 // Overide anything in the file.
@@ -3240,7 +3250,7 @@ namespace CharacterCounter
             }
             return output;
         }
-        public string GetHex( string prefix, string suffix)
+        public string GetHex(string prefix, string suffix)
         {
             // Work on a TargetDescriptor to return the Hex string.
             return GetHex(this.Target, prefix, suffix);
