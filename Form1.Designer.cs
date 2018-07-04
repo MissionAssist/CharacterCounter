@@ -144,7 +144,7 @@
             this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
             this.saveXMLDialogue = new System.Windows.Forms.SaveFileDialog();
             this.toolTipCombine = new System.Windows.Forms.ToolTip(this.components);
-            this.OpenGlyphFileDialogue = new System.Windows.Forms.OpenFileDialog();
+            this.openGlyphFileDialogue = new System.Windows.Forms.OpenFileDialog();
             this.fontDialog1 = new System.Windows.Forms.FontDialog();
             this.FolderDialogue = new System.Windows.Forms.FolderBrowserDialog();
             this.openContextCharFileDialogue = new System.Windows.Forms.OpenFileDialog();
@@ -180,8 +180,9 @@
             // openInputDialogue
             // 
             this.openInputDialogue.DefaultExt = "docx";
-            this.openInputDialogue.Filter = "Word or Rich Text files |*.doc;*.docx;*.rtf|All files| *.*";
+            this.openInputDialogue.Filter = "Word, Rich Text or Text files |*.doc;*.docx;*.rtf;*.txt|All files| *.*";
             this.openInputDialogue.Title = "Input File";
+            this.openInputDialogue.FileOk += new System.ComponentModel.CancelEventHandler(this.OpenInputDialogue_FileOk);
             // 
             // label3
             // 
@@ -697,7 +698,6 @@
             // 
             // BtnGetEncoding
             // 
-            this.BtnGetEncoding.Enabled = false;
             this.BtnGetEncoding.Location = new System.Drawing.Point(17, 568);
             this.BtnGetEncoding.Name = "BtnGetEncoding";
             this.BtnGetEncoding.Size = new System.Drawing.Size(75, 23);
@@ -1380,10 +1380,10 @@
             // 
             // OpenGlyphFileDialogue
             // 
-            this.OpenGlyphFileDialogue.DefaultExt = "xlsm";
-            this.OpenGlyphFileDialogue.Filter = "Excel Files | *.xlsx|Excel Macro Enabled Files |*.xlsm";
-            this.OpenGlyphFileDialogue.FilterIndex = 2;
-            this.OpenGlyphFileDialogue.Title = "Decomposed Glyph File";
+            this.openGlyphFileDialogue.DefaultExt = "xlsm";
+            this.openGlyphFileDialogue.Filter = "Excel Files | *.xlsx|Excel Macro Enabled Files |*.xlsm";
+            this.openGlyphFileDialogue.FilterIndex = 2;
+            this.openGlyphFileDialogue.Title = "Decomposed Glyph File";
             // 
             // fontDialog1
             // 
@@ -1481,7 +1481,7 @@
         private System.Windows.Forms.Button BtnSaveXML;
         private System.Windows.Forms.CheckBox CombDecomposedChars;
         private System.Windows.Forms.ToolTip toolTipCombine;
-        private System.Windows.Forms.OpenFileDialog OpenGlyphFileDialogue;
+        private System.Windows.Forms.OpenFileDialog openGlyphFileDialogue;
         private System.Windows.Forms.Button BtnErrorList;
         private System.Windows.Forms.TextBox ErrorListBox;
         private System.Windows.Forms.Label label10;

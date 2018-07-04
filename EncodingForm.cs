@@ -39,7 +39,7 @@ namespace CharacterCounter
 
         }
 
-        private void btnOK_Click(object sender, EventArgs e)
+        private void BtnOK_Click(object sender, EventArgs e)
         {
             DialogResult = DialogResult.OK;
             Form1 theOwner = (Form1)this.Owner;
@@ -47,7 +47,7 @@ namespace CharacterCounter
             this.Close();
         }
 
-        private void btnCancel_Click(object sender, EventArgs e)
+        private void BtnCancel_Click(object sender, EventArgs e)
         {
             DialogResult = DialogResult.Cancel;
             this.Close();

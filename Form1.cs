@@ -7,7 +7,7 @@
  *  
  *  The copyright is owned by MissionAssist as the work was carried out on their behalf.
  * 
- *  Written by Stephen Palmstrom, last modified 25 February 2017
+ *  Written by Stephen Palmstrom, last modified 19 May 2018
  *  
  */
 using System;
@@ -28,6 +28,7 @@ using System.Diagnostics;
 using System.Xml;
 using System.Xml.XPath;
 using System.Runtime.InteropServices;
+using System.Drawing.Text;
 
 using Microsoft.Win32;
 using WordApp = Microsoft.Office.Interop.Word._Application;
@@ -251,11 +252,11 @@ namespace CharacterCounter
                     }
                     break;
                 case "BtnDecompGlyph":
-                    OpenGlyphFileDialogue.InitialDirectory = GlyphDir;
-                    if (OpenGlyphFileDialogue.ShowDialog() == DialogResult.OK)
+                    openGlyphFileDialogue.InitialDirectory = GlyphDir;
+                    if (openGlyphFileDialogue.ShowDialog() == DialogResult.OK)
                     {
-                        DecompGlyphBox.Text = OpenGlyphFileDialogue.FileName;
-                        GlyphDir = Path.GetDirectoryName(OpenGlyphFileDialogue.FileName);
+                        DecompGlyphBox.Text = openGlyphFileDialogue.FileName;
+                        GlyphDir = Path.GetDirectoryName(openGlyphFileDialogue.FileName);
                         Registry.SetValue(keyName, "GlyphDir", GlyphDir);
                     }
                     break;
@@ -273,6 +274,13 @@ namespace CharacterCounter
         }
         private int GetFileType(string FileName, bool JustType = true)
         {
+            if (FontBox.Text == "")
+            {
+                FontBox.Text = Registry.GetValue(keyName, "Font", "Calibri").ToString();
+            }
+
+            SetEncodingTextBox(Path.GetExtension(FileName).ToLower() == ".docx");
+
             switch (Path.GetExtension(FileName).ToLower())
             {
                 // There may be times we just want the file type and nothing else.
@@ -287,7 +295,7 @@ namespace CharacterCounter
                         BtnSaveStyles.Enabled = true && (Individual || StyleListFileBox.Text != "");
                         BtnSaveXML.Enabled = true;
                         BtnGetFont.Enabled = false && !Individual;
-                        BtnGetEncoding.Enabled = false && !Individual;
+                        BtnGetEncoding.Enabled = true;
                         if (Individual)
                         {
                             AnalyseByFont.Enabled = true;  // Don't turn on if we are doing a bulk analysis
@@ -312,22 +320,26 @@ namespace CharacterCounter
                         BtnGetStyles.Enabled = false;
                         BtnSaveStyles.Enabled = false;
                         FontLabel.Enabled = true;
+                        SetEncodingTextBox();
                         if (FontBox.Text == "")
                         {
                             FontBox.Text = Registry.GetValue(keyName, "Font", "Calibri").ToString();
                         }
-                        if (EncodingTextBox.Text == "")
-                        {
-                            EncodingTextBox.Text = Registry.GetValue(keyName, "Encoding", "Western European (Windows)").ToString();
-                        }
+
                     }
                     return TextDoc;
-
             }
 
 
         }
-
+        private void SetEncodingTextBox(bool DefaultCode = false)
+        {
+            if (DefaultCode)
+            {
+                theEncoding = Encoding.Default; // default encoding.
+                EncodingTextBox.Text = theEncoding.EncodingName;
+            }
+        }
         private void BtnGetOutput_Click(object sender, EventArgs e)
         {
             //
@@ -757,11 +769,10 @@ namespace CharacterCounter
             theSheet.Range["B1"].Value = String.Format("{0}", Assembly.GetExecutingAssembly().GetName().Version.ToString());
             theSheet.Range["A2"].Value = "Filename(s)";
             theSheet.Range["B2"].Value = InputFile;
-            if (FileType == TextDoc)
-            {
-                theSheet.Range["A3"].Value = "Encoding";
-                theSheet.Range["B3"].Value = EncodingTextBox.Text;
-            }
+
+            theSheet.Range["A3"].Value = "Encoding";
+            theSheet.Range["B3"].Value = theEncoding.EncodingName;
+
             theSheet.Columns["A"].ColumnWidth = 25;
             if (checkGetContext.Checked)
             {
@@ -799,127 +810,150 @@ namespace CharacterCounter
             return true;
 
         }
-        private void WriteOutputSheet(Dictionary<CharacterDescriptor, int> theDictionary, string theFont, ExcelRoot.Worksheet theSheet, string SheetName, bool Aggregate)
+        private void WriteOutputSheet(Dictionary<CharacterDescriptor, int> theDictionary, string theFont,
+            ExcelRoot.Worksheet theSheet, string SheetName, bool Aggregate)
         {
-
-            theSheet.Name = SheetName;
-
-            /*
-            * Column headers
-            */
-            int Column = 1;
-            string FontColumnLetter = "A";
-            string ValueColumnLetter = "B";
-            string ColumnLetter = "E";
-            string GlyphLetter = "D";
-            int FontNumber = (int)Convert.ToChar(FontColumnLetter);
-            int ValueNumber = (int)Convert.ToChar(ValueColumnLetter);
-            int ColumnNumber = (int)Convert.ToChar(ColumnLetter);
-            int GlyphNumber = (int)Convert.ToChar(GlyphLetter);
-            toolStripProgressBar1.Value = 0; // reset
-            toolStripProgressBar1.Maximum = theDictionary.Count;
-            if (Aggregate)
+            try
             {
-                // we are writing an aggregate file and will need a summary worksheet, too.
-                theSheet.Cells[1, Column++].Value = "Filename";
-                // Increment the column numbers for glyph and the final column
-                ValueNumber++;
-                FontNumber++;
-                ColumnNumber++;
-                GlyphNumber++;
-            }
-            if (AnalyseByFont.Checked)
-            {
-                theSheet.Cells[1, Column++].Value = "Font";
-                ValueNumber++;
-                ColumnNumber++;
-                GlyphNumber++;
-            }
-            ValueColumnLetter = Convert.ToChar(ValueNumber).ToString();
-            ColumnLetter = Convert.ToChar(ColumnNumber).ToString();
-            GlyphLetter = Convert.ToChar(GlyphNumber).ToString();
-            FontColumnLetter = Convert.ToChar(FontNumber).ToString();
-            string RangeString = "A1:" + ColumnLetter + "1";
+                theSheet.Name = SheetName;
 
-            theSheet.Cells[1, Column++].Value = "Dec";
-            theSheet.Cells[1, Column++].value = "MS Hex";
-            theSheet.Cells[1, Column++].Value = "USV";
-            theSheet.Cells[1, Column++].Value = "Glyph";
-            theSheet.Cells[1, Column].Value = "Count";
-            theSheet.Range[RangeString].Font.Bold = true;  // Make the headings bold.
-            theSheet.Range[RangeString].HorizontalAlignment = ExcelRoot.XlHAlign.xlHAlignCenter;  // Centre
-
-            int theRow = 2;
-            foreach (KeyValuePair<CharacterDescriptor, int> kvp in theDictionary)
-            {
                 /*
-                    * Go through the dictionary writing to the worksheet
-                    */
-                Column = 1;
+                * Column headers
+                */
+                int Column = 1;
+                string theRowString = null;
+                string FontColumnLetter = "A";
+                string ValueColumnLetter = "B";
+                string ColumnLetter = "E";
+                string GlyphLetter = "D";
+                int FontNumber = (int)Convert.ToChar(FontColumnLetter);
+                int FirstColumnNumber = FontNumber;
+                int ValueNumber = (int)Convert.ToChar(ValueColumnLetter);
+                int ColumnNumber = (int)Convert.ToChar(ColumnLetter);
+                int GlyphNumber = (int)Convert.ToChar(GlyphLetter);
+                toolStripProgressBar1.Value = 0; // reset
+                toolStripProgressBar1.Maximum = theDictionary.Count;
                 if (Aggregate)
                 {
-                    theSheet.Cells[theRow, Column++].Value = kvp.Key.FileName;
+                    // we are writing an aggregate file and will need a summary worksheet, too.
+                    theSheet.Cells[1, Column++].Value = "Filename";
+                    // Increment the column numbers for glyph and the final column
+                    ValueNumber++;
+                    FontNumber++;
+                    ColumnNumber++;
+                    GlyphNumber++;
                 }
                 if (AnalyseByFont.Checked)
                 {
-                    theSheet.Cells[theRow, Column++].Value = kvp.Key.Font;
+                    theSheet.Cells[1, Column++].Value = "Font";
+                    ValueNumber++;
+                    ColumnNumber++;
+                    GlyphNumber++;
                 }
-                theSheet.Cells[theRow, Column].Value = GetCodes(kvp.Key.Text, dec);  // Decimal
-                theSheet.Cells[theRow, Column++].NumberFormat = "@";  // Text format
-                theSheet.Cells[theRow, Column].NumberFormat = "@";
-                theSheet.Cells[theRow, Column++].Value = GetCodes(kvp.Key.Text, hex);  // Hexadecimal
-                theSheet.Cells[theRow, Column++].Value = GetCodes(kvp.Key.Text, USV);  // USV
+                ValueColumnLetter = Convert.ToChar(ValueNumber).ToString();
+                ColumnLetter = Convert.ToChar(ColumnNumber).ToString();
+                GlyphLetter = Convert.ToChar(GlyphNumber).ToString();
+                FontColumnLetter = Convert.ToChar(FontNumber).ToString();
+                string RangeString = "A1:" + ColumnLetter + "1";
+                string DecColumnLetter = Convert.ToChar(FirstColumnNumber - 1 + Column).ToString();
+                theSheet.Cells[1, Column++].Value = "Dec";
+                theSheet.Cells[1, Column++].value = "MS Hex";
+                theSheet.Cells[1, Column++].Value = "USV";
+                theSheet.Cells[1, Column++].Value = "Glyph";
+                theSheet.Cells[1, Column].Value = "Count";
+                theSheet.Range[RangeString].Font.Bold = true;  // Make the headings bold.
+                theSheet.Range[RangeString].HorizontalAlignment = ExcelRoot.XlHAlign.xlHAlignCenter;  // Centre
+
+                int theRow = 2;
+                foreach (KeyValuePair<CharacterDescriptor, int> kvp in theDictionary)
+                {
+                    /*
+                        * Go through the dictionary writing to the worksheet
+                        */
+                    Column = 1;
+                    theRowString = (theRow).ToString(); if (Aggregate)
+                    {
+                        theSheet.Cells[theRow, Column++].Value = kvp.Key.FileName;
+                    }
+                    if (AnalyseByFont.Checked)
+                    {
+                        theSheet.Cells[theRow, Column++].Value = kvp.Key.Font;
+                    }
+                    theSheet.Cells[theRow, Column].Value = GetCodes(kvp.Key.Text, dec);  // Decimal
+                    theSheet.Cells[theRow, Column++].NumberFormat = "@";  // Text format
+                    theSheet.Cells[theRow, Column].NumberFormat = "@";
+                    theSheet.Cells[theRow, Column++].Value = GetCodes(kvp.Key.Text, hex);  // Hexadecimal
+                    theSheet.Cells[theRow, Column++].Value = GetCodes(kvp.Key.Text, USV);  // USV
+                    if (AnalyseByFont.Checked)
+                    {
+                        theSheet.Cells[theRow, Column].Font.Name = kvp.Key.Font;  // and set the font.
+                    }
+                    else
+                    {
+                        theSheet.Cells[theRow, Column].Font.Name = theFont;  // Set the cell to the first font we found
+                    }
+                    int theCharValue = Convert.ToInt32(GetCodes(kvp.Key.Text, dec));
+                    // If we have single byte encoding, the font isn't installed or we are analysing a text file we then apply
+                    // the encoding to the character.
+                    if (theEncoding.IsSingleByte && theCharValue <= 255 && (!IsFontInstalled(theFont) || kvp.Key.IsText))
+                    {
+                        // we put in the Excel formula for the character.
+                        //theSheet.Cells[theRow, Column++].Value = "=CHAR(" + DecColumnLetter + theRowString + ")" ; 
+                        byte[] theCharByte = new byte[1];
+                        theCharByte[0] = Convert.ToByte(theCharValue);  // The byte value of the character
+                        string theByteString = theEncoding.GetString(theCharByte); // Encode as a string using current encoding
+                        theSheet.Cells[theRow, Column++].Value = theByteString.ToString(); // Convert to a string - Excel hangs otherwise.
+                    }
+                    else
+                    {
+                        theSheet.Cells[theRow, Column++].Value = kvp.Key.Text;  // Write the glyph
+                    }
+                    theSheet.Cells[theRow, Column].Value = kvp.Value;  // the count
+                    theRow++;
+                    toolStripProgressBar1.Value = theRow - 2;
+                    Application.DoEvents();
+                }
+
+                /*
+                    * Now sort by USV value and, if analysing by font, font name
+                    */
+
+                ExcelRoot.Range CharStats = excelApp.get_Range("A1", ColumnLetter + theRowString);
+                // Now format all cells
                 if (AnalyseByFont.Checked)
                 {
-                    theSheet.Cells[theRow, Column].Font.Name = kvp.Key.Font;  // and set the font.
+                    CharStats.Sort(CharStats.Columns[4], ExcelRoot.XlSortOrder.xlAscending,
+                        CharStats.Columns[1], missing, ExcelRoot.XlSortOrder.xlAscending,
+                        missing, ExcelRoot.XlSortOrder.xlAscending, ExcelRoot.XlYesNoGuess.xlYes);
+                    string FontRange = FontColumnLetter + ":" + FontColumnLetter;
+                    theSheet.Range[FontRange].EntireColumn.ColumnWidth = 30;  // allow for 30 character font names
+                    theSheet.Range[FontRange].EntireColumn.HorizontalAlignment = ExcelRoot.XlHAlign.xlHAlignLeft;
                 }
                 else
                 {
-                    theSheet.Cells[theRow, Column].Font.Name = theFont;  // Set the cell to the first font we found
+                    CharStats.Sort(CharStats.Columns[3], ExcelRoot.XlSortOrder.xlAscending,
+                        missing, missing, ExcelRoot.XlSortOrder.xlAscending,
+                        missing, ExcelRoot.XlSortOrder.xlAscending, ExcelRoot.XlYesNoGuess.xlYes);
+
                 }
-
-                theSheet.Cells[theRow, Column++].Value = kvp.Key.Text;  // Write the glyph
-                theSheet.Cells[theRow, Column].Value = kvp.Value;  // the count
-                theRow++;
-                toolStripProgressBar1.Value = theRow - 2;
-                Application.DoEvents();
+                theSheet.Range[ValueColumnLetter + "1:" + ColumnLetter + theRowString].HorizontalAlignment = ExcelRoot.XlHAlign.xlHAlignLeft;
+                theSheet.Range["A1:" + ColumnLetter + theRowString].VerticalAlignment = ExcelRoot.XlVAlign.xlVAlignBottom;
+                // and the counts
+                theSheet.Range[GlyphLetter + "2:" + GlyphLetter + theRowString].HorizontalAlignment = ExcelRoot.XlHAlign.xlHAlignCenter;
+                theSheet.Range[ColumnLetter + "2:" + ColumnLetter + theRowString].HorizontalAlignment = ExcelRoot.XlHAlign.xlHAlignRight;
+                theSheet.Range[ColumnLetter + "2:" + ColumnLetter + theRowString].NumberFormat = "#,##0";
+                // and return to A1
+                theSheet.Range["A1"].Select();
+                // and freeze the top row
+                excelApp.ActiveWindow.SplitColumn = 0;
+                excelApp.ActiveWindow.SplitRow = 1;
+                excelApp.ActiveWindow.FreezePanes = true;
+                toolStripProgressBar1.Value = 0;
             }
-            string theRowString = (theRow - 1).ToString();
-            /*
-                * Now sort by USV value and, if analysing by font, font name
-                */
-
-            ExcelRoot.Range CharStats = excelApp.get_Range("A1", ColumnLetter + theRowString);
-            // Now format all cells
-            if (AnalyseByFont.Checked)
+            catch (Exception Ex)
             {
-                CharStats.Sort(CharStats.Columns[4], ExcelRoot.XlSortOrder.xlAscending,
-                    CharStats.Columns[1], missing, ExcelRoot.XlSortOrder.xlAscending,
-                    missing, ExcelRoot.XlSortOrder.xlAscending, ExcelRoot.XlYesNoGuess.xlYes);
-                string FontRange = FontColumnLetter + ":" + FontColumnLetter;
-                theSheet.Range[FontRange].EntireColumn.ColumnWidth = 30;  // allow for 30 character font names
-                theSheet.Range[FontRange].EntireColumn.HorizontalAlignment = ExcelRoot.XlHAlign.xlHAlignLeft;
+                MessageBox.Show(Ex.Message + "\n" + Ex.StackTrace);
             }
-            else
-            {
-                CharStats.Sort(CharStats.Columns[3], ExcelRoot.XlSortOrder.xlAscending,
-                    missing, missing, ExcelRoot.XlSortOrder.xlAscending,
-                    missing, ExcelRoot.XlSortOrder.xlAscending, ExcelRoot.XlYesNoGuess.xlYes);
-
-            }
-            theSheet.Range[ValueColumnLetter + "1:" + ColumnLetter + theRowString].HorizontalAlignment = ExcelRoot.XlHAlign.xlHAlignLeft;
-            theSheet.Range["A1:" + ColumnLetter + theRowString].VerticalAlignment = ExcelRoot.XlVAlign.xlVAlignBottom;
-            // and the counts
-            theSheet.Range[GlyphLetter + "2:" + GlyphLetter + theRowString].HorizontalAlignment = ExcelRoot.XlHAlign.xlHAlignCenter;
-            theSheet.Range[ColumnLetter + "2:" + ColumnLetter + theRowString].HorizontalAlignment = ExcelRoot.XlHAlign.xlHAlignRight;
-            theSheet.Range[ColumnLetter + "2:" + ColumnLetter + theRowString].NumberFormat = "#,##0";
-            // and return to A1
-            theSheet.Range["A1"].Select();
-            // and freeze the top row
-            excelApp.ActiveWindow.SplitColumn = 0;
-            excelApp.ActiveWindow.SplitRow = 1;
-            excelApp.ActiveWindow.FreezePanes = true;
-            toolStripProgressBar1.Value = 0;
         }
         private void WriteContextOutputSheet(Dictionary<ContextDescriptor, int> theDictionary, string theFont, ExcelRoot.Worksheet theSheet, string SheetName, bool Aggregate)
         {
@@ -1155,20 +1189,22 @@ namespace CharacterCounter
             Working = MarkWorking(false, Working, theControlDictionary);
             return;
         }
-        private int AnalyseText(Dictionary<CharacterDescriptor, int> theCharacterDictionary, Dictionary<ContextDescriptor, int> theContextDictionary,
+        private int AnalyseText(Dictionary<CharacterDescriptor, int> theCharacterDictionary,
+            Dictionary<ContextDescriptor, int> theContextDictionary,
             string theText, string theFont, int CharacterCount, Stopwatch theStopwatch)
         {
             // Analyse a text document
             int CharactersInText = theText.Length;
             toolStripStatusLabel1.Text = "Counting characters";
             CharacterCount += AnalyseString(theCharacterDictionary, theContextDictionary,
-                theFont, theText, CharactersInText, CharacterCount, theStopwatch);
+                theFont, theText, CharactersInText, CharacterCount, theStopwatch, true);
             listNormalisedErrors.Sort(listNormalisedErrors.Columns[0], ListSortDirection.Ascending);  // Sort first
             return CharacterCount;
 
 
         }
-        private int AnalyseDocument(Dictionary<CharacterDescriptor, int> theCharacterDictionary, Dictionary<ContextDescriptor, int> theContextDictionary,
+        private int AnalyseDocument(Dictionary<CharacterDescriptor, int> theCharacterDictionary,
+            Dictionary<ContextDescriptor, int> theContextDictionary,
             XmlDocument theXMLDocument, ref string theFirstFont, XmlNamespaceManager nsManager, int CharacterCount, Stopwatch theStopwatch)
         {
             // Analyse the contents of a character string
@@ -1286,7 +1322,7 @@ namespace CharacterCounter
                                     {
                                         // Analyse the text string, then remember the old font and start a new text string
                                         CharacterCount = AnalyseString(theCharacterDictionary, theContextDictionary, OldFontName, TextString,
-                                            RangeCharacterCount, CharacterCount, theStopwatch);
+                                            RangeCharacterCount, CharacterCount, theStopwatch, false);
                                         OldFontName = FontName;
                                         TextString = Convert.ToString(theChar); // make it a string concatenating it with previous symbols. 
                                     }
@@ -1322,7 +1358,7 @@ namespace CharacterCounter
                                         }
                                         else
                                         {
-                                            CharacterCount = AnalyseString(theCharacterDictionary, theContextDictionary, OldFontName, TextString, RangeCharacterCount, CharacterCount, theStopwatch);
+                                            CharacterCount = AnalyseString(theCharacterDictionary, theContextDictionary, OldFontName, TextString, RangeCharacterCount, CharacterCount, theStopwatch, false);
                                             OldFontName = FontName;
                                             TextString = theText.InnerText;
                                         }
@@ -1369,11 +1405,13 @@ namespace CharacterCounter
                             if (TextString != "")
                             {
                                 // We have some text to process
-                                CharacterCount = AnalyseString(theCharacterDictionary, theContextDictionary, FontName, TextString, RangeCharacterCount, CharacterCount, theStopwatch);
+                                CharacterCount = AnalyseString(theCharacterDictionary, theContextDictionary, FontName, 
+                                    TextString, RangeCharacterCount, CharacterCount, theStopwatch, false);
                                 TextString = "";
                                 // Now add the end of line marker
                             }
-                            CharacterCount = AnalyseString(theCharacterDictionary, theContextDictionary, theParagraphFont, "\r", RangeCharacterCount, CharacterCount, theStopwatch);
+                            CharacterCount = AnalyseString(theCharacterDictionary, theContextDictionary, theParagraphFont, "\r", 
+                                RangeCharacterCount, CharacterCount, theStopwatch, false);
 
 
                         }
@@ -1386,7 +1424,8 @@ namespace CharacterCounter
                             {
                                 TextString += "\f";  // section/page break gives a form feed.
                             }
-                            CharacterCount = AnalyseString(theCharacterDictionary, theContextDictionary, FontName, TextString, RangeCharacterCount, CharacterCount, theStopwatch);
+                            CharacterCount = AnalyseString(theCharacterDictionary, theContextDictionary, FontName, TextString, RangeCharacterCount,
+                                CharacterCount, theStopwatch, false);
                             TextString = "";
                         }
                     }
@@ -1487,7 +1526,8 @@ namespace CharacterCounter
                             }
                         }
                         */
-                        CharacterCount = AnalyseString(theCharacterDictionary, theContextDictionary, "", TextString, RangeCharacterCount, CharacterCount, theStopwatch);
+                        CharacterCount = AnalyseString(theCharacterDictionary, theContextDictionary, "", TextString, RangeCharacterCount,
+                            CharacterCount, theStopwatch, false);
                         TextString = "";  // clear the text string.
 
                     }
@@ -1649,7 +1689,7 @@ namespace CharacterCounter
             }
         }
         private int AnalyseString(Dictionary<CharacterDescriptor, int> theCharacterDictionary, Dictionary<ContextDescriptor, int> theContextDictionary,
-            string FontName, string TextString, int RangeCharacterCount, int CharacterCount, Stopwatch theStopwatch)
+            string FontName, string theTextDocument, int RangeCharacterCount, int CharacterCount, Stopwatch theStopwatch, bool IsText)
         {
             /*
              * We shall first use the data for legacy decomposed characters to count them before we use the built-in functions that handle
@@ -1667,11 +1707,11 @@ namespace CharacterCounter
                     {
                         Regex theGlyphs = new Regex(theGlyphDictionary[FontName]);
 
-                        MatchCollection theMatches = theGlyphs.Matches(TextString);
+                        MatchCollection theMatches = theGlyphs.Matches(theTextDocument);
                         foreach (Match theMatch in theMatches)
                         {
                             string theString = theMatch.Value.ToString();
-                            theKey = new CharacterDescriptor(FontName, theString);
+                            theKey = new CharacterDescriptor(FontName, theString, IsText);
                             IncrementCharCount(theCharacterDictionary, theKey);
                             CharacterCount += theString.Length;
                             ReportProgress(CharacterCount, RangeCharacterCount, theStopwatch);
@@ -1679,7 +1719,7 @@ namespace CharacterCounter
                         }
 
                         // now remove all those characters
-                        tmpString = theGlyphs.Replace(TextString, "");
+                        tmpString = theGlyphs.Replace(theTextDocument, "");
                     }
                     catch (Exception ex)
                     {
@@ -1690,7 +1730,7 @@ namespace CharacterCounter
                 }
                 else
                 {
-                    tmpString = TextString;
+                    tmpString = theTextDocument;
                 }
                 /*
                  * We shall now use the built-in Unicode functions to find Unicode decomposed characters
@@ -1703,11 +1743,11 @@ namespace CharacterCounter
                         string theString = theTextElements.GetTextElement();
                         if (AnalyseByFont.Checked)
                         {
-                            theKey = new CharacterDescriptor(FontName, theString);
+                            theKey = new CharacterDescriptor(FontName, theString, IsText);
                         }
                         else
                         {
-                            theKey = new CharacterDescriptor(theString);
+                            theKey = new CharacterDescriptor(theString, IsText);
                         }
                         CharacterCount += theString.Length;
                         IncrementCharCount(theCharacterDictionary, theKey);
@@ -1724,7 +1764,7 @@ namespace CharacterCounter
                     {
                         if (AnalyseByFont.Checked)
                         {
-                            theKey = new CharacterDescriptor(FontName, tmpString[i].ToString());
+                            theKey = new CharacterDescriptor(FontName, tmpString[i].ToString(), IsText);
                         }
                         else
                         {
@@ -1742,7 +1782,7 @@ namespace CharacterCounter
                 foreach (TargetDescriptor theTarget in TargetDictionary.Values)
                 {
                     string pattern = theTarget.GetRegEx();
-                    MatchCollection contexts = Regex.Matches(TextString, pattern);
+                    MatchCollection contexts = Regex.Matches(theTextDocument, pattern);
                     ContextDescriptor theContextKey;
                     foreach (Match context in contexts)
                     {
@@ -2271,7 +2311,8 @@ namespace CharacterCounter
                 {
                     try
                     {
-                        wrdApp.Documents.Open(WordFile, missing, true);
+                        // Open Word with the encoding of your choice.
+                        wrdApp.Documents.Open(WordFile, missing, true, false, missing, missing, missing, missing, missing, missing, theEncoding.CodePage);
                         theDocument = wrdApp.ActiveDocument;
                         theResult = DialogResult.OK;
                     }
@@ -2419,7 +2460,19 @@ namespace CharacterCounter
             {
                 try
                 {
-                    theTextDocument = File.ReadAllText(TextFile, theEncoding);
+                    if (theEncoding.IsSingleByte)
+                    {
+                        byte[] TextAsBytes = File.ReadAllBytes(TextFile);
+                        theTextDocument = "";
+                        foreach (byte theByte in TextAsBytes)
+                        {
+                            theTextDocument += Convert.ToChar(theByte);
+                        }
+                    } else
+                    {
+                        theTextDocument = File.ReadAllText(TextFile, theEncoding);
+                    }
+
                     Retry = DialogResult.OK;
                 }
                 catch (Exception Ex)
@@ -2972,12 +3025,27 @@ namespace CharacterCounter
             AssignContext(theTarget, theTarget.Target);
 
         }
+
+        private void OpenInputDialogue_FileOk(object sender, CancelEventArgs e)
+        {
+
+        }
+        private static bool IsFontInstalled(string name)
+        {
+            // courtesy of https://stackoverflow.com/questions/113989/test-if-a-font-is-installed
+            using (InstalledFontCollection fontsCollection = new InstalledFontCollection())
+            {
+                return fontsCollection.Families
+                    .Any(x => x.Name.Equals(name, StringComparison.CurrentCultureIgnoreCase));
+            }
+        }
     }
     class CharacterDescriptor
     {
         public string FileName;
         public string Font;
         public string Text;
+        public bool IsText; // set if we read a text file.
 
         // Constructor
         public CharacterDescriptor(string FileName, string Font, string Text)
@@ -2985,31 +3053,35 @@ namespace CharacterCounter
             this.FileName = FileName;
             this.Font = Font;
             this.Text = Text;
+            this.IsText = (Path.GetExtension(FileName).ToLower() == "txt");
         }
-        public CharacterDescriptor(string Font, string Text)
+        public CharacterDescriptor(string Font, string Text, bool IsText)
         {
             this.FileName = null;
             this.Font = Font;
             this.Text = Text;
+            this.IsText = IsText;
         }
-
-        public CharacterDescriptor(string Text)
+        public CharacterDescriptor(string Text, bool IsText = false)
         {
             this.FileName = null;
             this.Text = Text;
             this.Font = null;
+            this.IsText = IsText;
         }
-        public CharacterDescriptor(CharacterDescriptor theCharacterDescriptor)
+       public CharacterDescriptor(CharacterDescriptor theCharacterDescriptor)
         {
             this.FileName = theCharacterDescriptor.FileName;
             this.Font = theCharacterDescriptor.Font;
             this.Text = theCharacterDescriptor.Text;
+            this.IsText = theCharacterDescriptor.IsText;
         }
         public CharacterDescriptor()
         {
             this.FileName = null;
             this.Font = null;
             this.Text = null;
+            this.IsText = false;
         }
     }
     class ContextDescriptor
@@ -3061,7 +3133,8 @@ namespace CharacterCounter
     {
         override public bool Equals(CharacterDescriptor key1, CharacterDescriptor key2)
         {
-            bool isEqual = (key1.FileName == key2.FileName) & (key1.Font == key2.Font) & (key1.Text == key2.Text);
+            bool isEqual = (key1.FileName == key2.FileName) & (key1.Font == key2.Font) & (key1.Text == key2.Text)
+                & (key1.IsText == key2.IsText);
             return isEqual;
         }
         override public int GetHashCode(CharacterDescriptor key)
@@ -3069,11 +3142,11 @@ namespace CharacterCounter
             int HashCode = 0;
             if (key.Font == "")
             {
-                HashCode = (key.FileName + "\r" + key.Text).GetHashCode();
+                HashCode = (key.FileName + "\r" + key.Text + "\r" + key.IsText.ToString()).GetHashCode();
             }
             else
             {
-                HashCode = (key.FileName + "\r" + key.Text + "\r" + key.Font).GetHashCode();
+                HashCode = (key.FileName + "\r" + key.Text + "\r" + key.Font + "\r" + key.IsText.ToString()).GetHashCode();
             }
             return HashCode;
         }
@@ -3269,7 +3342,6 @@ namespace CharacterCounter
 
         }
     }
-
 
 }
 
