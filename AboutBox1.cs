@@ -1,22 +1,19 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Drawing;
-using System.Linq;
+using System.Globalization;
 using System.Reflection;
-using System.Threading.Tasks;
 using System.Windows.Forms;
-
 namespace CharacterCounter
 {
     partial class AboutBox1 : Form
     {
+        static CultureInfo TheFormat = CultureInfo.CurrentUICulture;
+
         public AboutBox1()
         {
             InitializeComponent();
-            this.Text = String.Format("About {0}", AssemblyTitle);
+            this.Text = string.Format(TheFormat, "About {0}", AssemblyTitle);
             this.labelProductName.Text = AssemblyProduct;
-            this.labelVersion.Text = String.Format("Version {0}", AssemblyVersion);
+            this.labelVersion.Text = string.Format(TheFormat, "Version {0}", AssemblyVersion);
             this.labelCopyright.Text = AssemblyCopyright;
             this.labelCompanyName.Text = AssemblyCompany;
             this.textBoxDescription.Text = AssemblyDescription;
@@ -24,7 +21,7 @@ namespace CharacterCounter
 
         #region Assembly Attribute Accessors
 
-        public string AssemblyTitle
+        public static string AssemblyTitle
         {
             get
             {
@@ -32,7 +29,7 @@ namespace CharacterCounter
                 if (attributes.Length > 0)
                 {
                     AssemblyTitleAttribute titleAttribute = (AssemblyTitleAttribute)attributes[0];
-                    if (titleAttribute.Title != "")
+                    if (!string.IsNullOrEmpty(titleAttribute.Title))
                     {
                         return titleAttribute.Title;
                     }
@@ -41,7 +38,7 @@ namespace CharacterCounter
             }
         }
 
-        public string AssemblyVersion
+        public static string AssemblyVersion
         {
             get
             {
@@ -49,7 +46,7 @@ namespace CharacterCounter
             }
         }
 
-        public string AssemblyDescription
+        public static string AssemblyDescription
         {
             get
             {
@@ -62,7 +59,7 @@ namespace CharacterCounter
             }
         }
 
-        public string AssemblyProduct
+        public static string AssemblyProduct
         {
             get
             {
@@ -75,7 +72,7 @@ namespace CharacterCounter
             }
         }
 
-        public string AssemblyCopyright
+        public static string AssemblyCopyright
         {
             get
             {
@@ -88,7 +85,7 @@ namespace CharacterCounter
             }
         }
 
-        public string AssemblyCompany
+        public static string AssemblyCompany
         {
             get
             {
@@ -102,11 +99,14 @@ namespace CharacterCounter
         }
         #endregion
 
-        private void okButton_Click(object sender, EventArgs e)
+        private void OkButton_Click(object sender, EventArgs e)
         {
             this.Close();  // Close the About box
         }
 
-        
+        private void labelCopyright_Click(object sender, EventArgs e)
+        {
+
+        }
     }
 }

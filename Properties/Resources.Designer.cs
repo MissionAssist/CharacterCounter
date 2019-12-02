@@ -19,7 +19,7 @@ namespace CharacterCounter.Properties {
     // class via a tool like ResGen or Visual Studio.
     // To add or remove a member, edit your .ResX file then rerun ResGen
     // with the /str option, or rebuild your VS project.
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "4.0.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "16.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
     internal class Resources {
@@ -57,6 +57,159 @@ namespace CharacterCounter.Properties {
             }
             set {
                 resourceCulture = value;
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Abort.
+        /// </summary>
+        internal static string Abort {
+            get {
+                return ResourceManager.GetString("Abort", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Close.
+        /// </summary>
+        internal static string Close {
+            get {
+                return ResourceManager.GetString("Close", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Error.
+        /// </summary>
+        internal static string Error {
+            get {
+                return ResourceManager.GetString("Error", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Error in analysing text.
+        /// </summary>
+        internal static string Error_in_analysing_text {
+            get {
+                return ResourceManager.GetString("Error in analysing text", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Error in character counting - analysed by font.
+        /// </summary>
+        internal static string Error_in_character_counting___analysed_by_font {
+            get {
+                return ResourceManager.GetString("Error in character counting - analysed by font", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Error in character counting - not analysed by font.
+        /// </summary>
+        internal static string Error_in_character_counting___not_analysed_by_font {
+            get {
+                return ResourceManager.GetString("Error in character counting - not analysed by font", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Error opening context file.
+        /// </summary>
+        internal static string Error_opening_context_file {
+            get {
+                return ResourceManager.GetString("Error opening context file", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Error opening glyph file.
+        /// </summary>
+        internal static string Error_opening_glyph_file {
+            get {
+                return ResourceManager.GetString("Error opening glyph file", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Failed to delete Excel file.
+        /// </summary>
+        internal static string Failed_to_delete_Excel_file {
+            get {
+                return ResourceManager.GetString("Failed to delete Excel file", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Failed to get directories.
+        /// </summary>
+        internal static string Failed_to_get_directories {
+            get {
+                return ResourceManager.GetString("Failed to get directories", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Failed to save Excel file.
+        /// </summary>
+        internal static string Failed_to_save_Excel_file {
+            get {
+                return ResourceManager.GetString("Failed to save Excel file", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to File does not exist.
+        /// </summary>
+        internal static string File_does_not_exist {
+            get {
+                return ResourceManager.GetString("File does not exist", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to File not found.
+        /// </summary>
+        internal static string File_not_found {
+            get {
+                return ResourceManager.GetString("File not found", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to File open failure.
+        /// </summary>
+        internal static string File_open_failure {
+            get {
+                return ResourceManager.GetString("File open failure", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Select the directory to receive the individual files.
+        /// </summary>
+        internal static string Select_the_directory_to_receive_the_individual_files {
+            get {
+                return ResourceManager.GetString("Select the directory to receive the individual files", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Shutting down....
+        /// </summary>
+        internal static string Shutting_down___ {
+            get {
+                return ResourceManager.GetString("Shutting down...", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Word failed to open!.
+        /// </summary>
+        internal static string Word_failed_to_open_ {
+            get {
+                return ResourceManager.GetString("Word failed to open!", resourceCulture);
             }
         }
     }

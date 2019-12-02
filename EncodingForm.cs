@@ -23,7 +23,7 @@ namespace CharacterCounter
             // Load the encodings
             int Counter = 0;
             string theEncodingName = ((Form1)Owner).GetEncoding();
-            if (theEncodingName == "")
+            if (string.IsNullOrEmpty(theEncodingName))
             {
                 theEncodingName = "Western European (Windows)";  // Equivalent to ANSI
             }

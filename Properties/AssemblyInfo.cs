@@ -6,11 +6,11 @@ using System.Runtime.InteropServices;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyTitle("CharacterCounter")]
-[assembly: AssemblyDescription("Counts characters in Word documents.  Distributed under the GNU General Public License (http://www.gnu.org/licenses/gpl.txt)")]
+[assembly: AssemblyDescription("Counts characters in Word documents.\n\r\n\rDistributed under the GNU General Public License (http://www.gnu.org/licenses/gpl.txt)")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("MissionAssist")]
-[assembly: AssemblyProduct("CharacterCounter")]
-[assembly: AssemblyCopyright("Copyright ©  2018")]
+[assembly: AssemblyProduct("Character Counter")]
+[assembly: AssemblyCopyright("Copyright © MissionAssist 2019")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -32,5 +32,5 @@ using System.Runtime.InteropServices;
 // You can specify all the values or you can default the Build and Revision Numbers 
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("5.1.*")]
-[assembly: AssemblyFileVersion("5.1.0.0")]
+[assembly: AssemblyVersion("6.0.*")]
+[assembly: AssemblyFileVersion("6.0.0.0")]
